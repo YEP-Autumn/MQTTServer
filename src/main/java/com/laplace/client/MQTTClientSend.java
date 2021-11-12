@@ -1,5 +1,7 @@
 package com.laplace.client;
 
+import io.netty.handler.codec.mqtt.MqttQoS;
+import io.vertx.core.buffer.Buffer;
 import org.eclipse.paho.client.mqttv3.*;
 
 import java.net.URISyntaxException;
@@ -12,12 +14,14 @@ import java.nio.charset.StandardCharsets;
  * @Email:
  */
 public class MQTTClientSend {
-    public static void main(String[] args) throws URISyntaxException, MqttException {
+    public static void main(String[] args) throws MqttException {
         MqttConnectOptions options = new MqttConnectOptions();
+//        options.setSSLProperties();
         options.setAutomaticReconnect(true);
         String bt = "你好啊";
-        options.setWill("temp",bt.getBytes(StandardCharsets.UTF_8),1,false);
+        options.setWill("yepasdfs",bt.getBytes(StandardCharsets.UTF_8),0,false);
         MqttClient client = new MqttClient("tcp://10.10.10.15:1883","sendId");
         client.connect(options);
+        client.publish("my_topic", bt.getBytes(StandardCharsets.UTF_8), 0,false);
     }
 }

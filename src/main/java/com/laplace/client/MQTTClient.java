@@ -21,7 +21,14 @@ public class MQTTClient {
         options.setAutomaticReconnect(true);
         MqttClient client = new MqttClient("tcp://10.10.10.15:1883","userId");
         client.connect(options);
-        client.subscribe("temp", new IMqttMessageListener() {
+        client.subscribe("yepasdfs",1, new IMqttMessageListener() {
+            @Override
+            public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
+                System.out.println(s);
+                System.out.println(mqttMessage.toString());
+            }
+        });
+        client.subscribe("my_topic",0, new IMqttMessageListener() {
             @Override
             public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
                 System.out.println(s);
