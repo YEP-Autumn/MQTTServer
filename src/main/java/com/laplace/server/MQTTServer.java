@@ -91,12 +91,18 @@ public class MQTTServer {
             // 处理客户端发送的消息
             endpoint.publishHandler(message ->{
                 System.out.println("Just received message ["+ message.payload().toString(Charset.defaultCharset())+"] with QoS ["+ message.qosLevel()+"]");
+//                endpoint.publish(message.topicName(),Buffer.buffer(message.payload().toString()),MqttQoS.valueOf(message.messageId()),false,false);
                 if(message.qosLevel()==MqttQoS.AT_LEAST_ONCE){
+                    System.out.println("发布确认");
                     endpoint.publishAcknowledge(message.messageId());
                 }else if(message.qosLevel()==MqttQoS.EXACTLY_ONCE){
+                    System.out.println("发布");
                     endpoint.publishRelease(message.messageId());
                 }
-            }).publishReleaseHandler(endpoint::publishComplete);
+            }).publishReleaseHandler(id->{
+                System.out.println("发布完成");
+                endpoint.publishComplete(id);
+            });
 
 
 

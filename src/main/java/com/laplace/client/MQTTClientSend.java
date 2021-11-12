@@ -22,6 +22,10 @@ public class MQTTClientSend {
         options.setWill("yepasdfs",bt.getBytes(StandardCharsets.UTF_8),0,false);
         MqttClient client = new MqttClient("tcp://10.10.10.15:1883","sendId");
         client.connect(options);
-        client.publish("my_topic", bt.getBytes(StandardCharsets.UTF_8), 0,false);
+        MqttTopic yepasdfs = client.getTopic("yepasdfs");
+        yepasdfs.publish(bt.getBytes(StandardCharsets.UTF_8), 0,false);
+//        client.publish("my_topic", bt.getBytes(StandardCharsets.UTF_8), 0,false);
+
+
     }
 }
