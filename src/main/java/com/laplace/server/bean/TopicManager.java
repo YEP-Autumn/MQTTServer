@@ -41,14 +41,20 @@ public class TopicManager {
 
     public void sendTopic(Topic topic) {
         for (int i = 0; i < 3; i++) {
-            System.out.println("i=" + i);
             HashSet<MqttEndpoint> endpoints = topicEndpoint.get(new Topic(topic.getTopicName(), MqttQoS.valueOf(i)));
             if (endpoints == null) continue;
             if (endpoints.size() == 0) continue;
             topic.setQos(topic.getQos().value() < i ? topic.getQos() : MqttQoS.valueOf(i));  // 服务降级
+            int finalI = i;
             endpoints.forEach(new Consumer<MqttEndpoint>() {
                 @Override
                 public void accept(MqttEndpoint endpoint) {
+                    if (!endpoint.isConnected()) {
+                        endpoints.remove(endpoint);
+                        topicEndpoint.put(new Topic(topic.getTopicName(), MqttQoS.valueOf(finalI)), endpoints);
+                        return;
+                    }
+                    if (endpoint.isCleanSession()) topic.setQos(MqttQoS.AT_MOST_ONCE);  // 如果客户端 cleanSession=true 则以最低的服务质量向其发送消息
                     PUBLISH_DISPATCHER(topic, endpoint);
                 }
             });
@@ -74,19 +80,19 @@ public class TopicManager {
 
 
     public MqttEndpoint PUBLISH_ALL_QoS(Topic topic, MqttEndpoint endpoint) {
-        System.out.println("发布了一条消息");
+        System.out.println("发布");
         return endpoint.publish(topic.getTopicName(), topic.getPayload(), topic.getQos(), topic.isDup(), topic.isRetain());
     }
 
 
     public MqttEndpoint PUBLISH_AT_LEAST_ONCE(Topic topic, MqttEndpoint endpoint) {
-        System.out.println("转发服务质量为1的消息");
         new Thread(new Runnable() {
             @SneakyThrows
             @Override
             public void run() {
                 final boolean[] isReceived = {false};
-                while (!isReceived[0]) {
+                final int[] count = {0};
+                while (!isReceived[0] && count[0] < 100) {
                     PUBLISH_ALL_QoS(topic, endpoint).publishAcknowledgeHandler(new Handler<Integer>() {
                         @Override
                         public void handle(Integer integer) {
@@ -95,6 +101,7 @@ public class TopicManager {
                         }
                     });
                     Thread.sleep(10000);
+                    count[0]++;
                 }
             }
         }).start();
@@ -109,7 +116,8 @@ public class TopicManager {
             @Override
             public void run() {
                 final boolean[] isCompleted = {false};
-                while (!isCompleted[0]) {
+                final int[] count = {0};
+                while (!isCompleted[0] && count[0] < 100) {
                     PUBLISH_ALL_QoS(topic, endpoint).publishReceivedHandler(new Handler<Integer>() {
                         @Override
                         public void handle(Integer integer) {
@@ -123,6 +131,7 @@ public class TopicManager {
                         }
                     });
                     Thread.sleep(10000);
+                    count[0]++;
                 }
             }
         }).start();

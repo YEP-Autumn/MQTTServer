@@ -20,10 +20,10 @@ public class MQTTClientSend {
         options.setAutomaticReconnect(true);
         String bt = "你好啊";
         options.setWill("yepasdfs",bt.getBytes(StandardCharsets.UTF_8),0,false);
-        MqttClient client = new MqttClient("tcp://10.10.10.15:1883","sendId");
+        MqttClient client = new MqttClient("tcp://10.10.10.15:1883","6fc18545d5b587558ab16ce6a76938d4");
         client.connect(options);
         MqttTopic yepasdfs = client.getTopic("yepasdfs");
-        yepasdfs.publish(bt.getBytes(StandardCharsets.UTF_8), 0,false);
+        yepasdfs.publish(bt.getBytes(StandardCharsets.UTF_8), 2,false);
 //        client.publish("my_topic", bt.getBytes(StandardCharsets.UTF_8), 0,false);
 
 
