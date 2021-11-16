@@ -18,9 +18,11 @@ public class MQTTClient {
 
     public static void main(String[] args) throws MqttException {
         MqttConnectOptions options = new MqttConnectOptions();
+        options.setCleanSession(true);
+        options.setKeepAliveInterval(5);
         options.setUserName("2017248646");
         options.setPassword("2017248646Ss.".toCharArray());
-        options.setAutomaticReconnect(true);
+//        options.setAutomaticReconnect(true);
         MqttClient client = new MqttClient("tcp://localhost:1883", "6fc1d435d5b546558ab16ce6a76938d4");
         client.connect(options);
         client.subscribe("yepasdfs", 0, (s, mqttMessage) -> {

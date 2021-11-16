@@ -14,12 +14,16 @@ import java.util.Objects;
  */
 @Data
 public class Topic {
+
+    // 主要标识信息
     private String topicName;
     private MqttQoS qos;
 
+    // 附带信息
     private Buffer payload;
     private boolean Dup;
     private boolean Retain;
+
 
     public Topic(String topicName) {
         this.topicName = topicName;

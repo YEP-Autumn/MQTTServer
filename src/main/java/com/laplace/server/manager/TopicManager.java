@@ -1,5 +1,6 @@
-package com.laplace.server.bean;
+package com.laplace.server.manager;
 
+import com.laplace.server.bean.Topic;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.Handler;
 import io.vertx.mqtt.MqttEndpoint;
@@ -17,7 +18,7 @@ import java.util.function.Consumer;
  */
 public class TopicManager {
 
-    private HashMap<Topic, HashSet<MqttEndpoint>> topicEndpoint = new HashMap<>();
+     HashMap<Topic, HashSet<MqttEndpoint>> topicEndpoint = new HashMap<>();
 
 
     public void subscribe(Topic topic, MqttEndpoint endpoint) {
@@ -39,7 +40,7 @@ public class TopicManager {
         }
     }
 
-    public void sendTopic(Topic topic) {
+    public  void sendTopic(Topic topic) {
         for (int i = 0; i < 3; i++) {
             HashSet<MqttEndpoint> endpoints = topicEndpoint.get(new Topic(topic.getTopicName(), MqttQoS.valueOf(i)));
             if (endpoints == null) continue;
@@ -54,15 +55,20 @@ public class TopicManager {
                         topicEndpoint.put(new Topic(topic.getTopicName(), MqttQoS.valueOf(finalI)), endpoints);
                         return;
                     }
-                    if (endpoint.isCleanSession()) topic.setQos(MqttQoS.AT_MOST_ONCE);  // 如果客户端 cleanSession=true 则以最低的服务质量向其发送消息
+                    if (endpoint.isCleanSession())
+                        topic.setQos(MqttQoS.AT_MOST_ONCE);  // 如果客户端 cleanSession=true 则以最低的服务质量向其发送消息
                     PUBLISH_DISPATCHER(topic, endpoint);
                 }
             });
         }
     }
 
+    public void sendWill(Topic topic) {
 
-    public MqttEndpoint PUBLISH_DISPATCHER(Topic topic, MqttEndpoint endpoint) {
+    }
+
+
+    public  MqttEndpoint PUBLISH_DISPATCHER(Topic topic, MqttEndpoint endpoint) {
         if (MqttQoS.AT_MOST_ONCE.equals(topic.getQos())) {
             PUBLISH_ALL_QoS(topic, endpoint);
             return endpoint;
@@ -102,6 +108,7 @@ public class TopicManager {
                     });
                     Thread.sleep(10000);
                     count[0]++;
+                    topic.setDup(true);
                 }
             }
         }).start();
@@ -132,6 +139,7 @@ public class TopicManager {
                     });
                     Thread.sleep(10000);
                     count[0]++;
+                    topic.setDup(true);
                 }
             }
         }).start();
