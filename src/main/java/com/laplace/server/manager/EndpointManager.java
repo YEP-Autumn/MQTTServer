@@ -3,10 +3,8 @@ package com.laplace.server.manager;
 import com.laplace.server.bean.Topic;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttQoS;
-import io.netty.util.internal.StringUtil;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.mqtt.MqttEndpoint;
 import io.vertx.mqtt.MqttServer;
 import io.vertx.mqtt.MqttTopicSubscription;
@@ -27,11 +25,11 @@ import java.util.List;
  */
 public class EndpointManager {
 
-    //    @Resource
-    TopicManager topicManager = new TopicManager();
 
     private HashSet<String> clientID = new HashSet<>();
 
+
+    RankTopicManager rankTopicManager = new RankTopicManager();
 
     public void dealWithLogin(MqttEndpoint endpoint) {
         // 接受客户端连接
@@ -76,92 +74,97 @@ public class EndpointManager {
         }
     }
 
-    public void publishManager(MqttPublishMessage mqttPublishMessage, MqttEndpoint endpoint) {
-        // endpoint.publishAutoAck(true);  // 自动处理响应
-        System.out.println("客户端发布主题   【主题】:" + mqttPublishMessage.topicName() +
-                " 【服务质量】:" + mqttPublishMessage.qosLevel() +
-                " 【Message】:" + mqttPublishMessage.payload().toString() +
-                " 【保留】:" + mqttPublishMessage.isRetain() +
-                " 【重复】:" + mqttPublishMessage.isDup());  // 如果是重复消息说明该设备网络不好，曾经发送过数据但没有收到返回消息(服务质量不为0，cleanSession=false)
-
-
-        // QoS = 0
-        if (mqttPublishMessage.qosLevel() == MqttQoS.AT_MOST_ONCE) {
-            Topic topic = new Topic(mqttPublishMessage.topicName(), mqttPublishMessage.qosLevel(), mqttPublishMessage.payload(), false, false);
-            topicManager.sendTopic(topic);
-            return;
-        }
-
-        /*
-            QoS = 1
-                        (PUBLISH)
-            publisher   ---------->  Broker
-                        (PUBACK)
-            publisher   <----------  Broker
-        */
-        if (mqttPublishMessage.qosLevel() == MqttQoS.AT_LEAST_ONCE) {
-            endpoint.publishAcknowledge(mqttPublishMessage.messageId());
-            Topic topic = new Topic(mqttPublishMessage.topicName(), mqttPublishMessage.qosLevel(), mqttPublishMessage.payload(), false, false);
-            topicManager.sendTopic(topic);
-            return;
-        }
-
-        /*
-            QoS = 2
-                        (PUBLISH)
-            publisher   ---------->  Broker
-                        (PUBREC)
-            publisher   <----------  Broker
-                        (PUBREL)
-            publisher   ---------->  Broker
-                        (PUBCOMP)
-            publisher   <----------  Broker
-        */
-        if (mqttPublishMessage.qosLevel() == MqttQoS.EXACTLY_ONCE) {
-            endpoint.publishReceived(mqttPublishMessage.messageId()).publishReleaseHandler(new Handler<Integer>() {
-                @Override
-                public void handle(Integer integer) {
-                    endpoint.publishComplete(integer);
-                    Topic topic = new Topic(mqttPublishMessage.topicName(), mqttPublishMessage.qosLevel(), mqttPublishMessage.payload(), false, false);
-                    topicManager.sendTopic(topic);
-                    return;
-                }
-            });
-        }
-    }
 
     public void subscribeManager(MqttSubscribeMessage mqttSubscribeMessage, MqttEndpoint endpoint) {
         List<MqttQoS> grantedQosLevels = new ArrayList<>();
         for (MqttTopicSubscription s : mqttSubscribeMessage.topicSubscriptions()) {
             System.out.println("【订阅主题】:" + s.topicName() + " 【服务质量】:" + s.qualityOfService());
             grantedQosLevels.add(s.qualityOfService());
-
-            topicManager.subscribe(new Topic(s.topicName(), s.qualityOfService()), endpoint);  // 处理主题订阅
+            Topic topic = new Topic(s.topicName(), s.qualityOfService());
+            rankTopicManager.subscribe(topic, endpoint);
+//            topicManager.subscribe(new Topic(s.topicName(), s.qualityOfService()), endpoint);  // 处理主题订阅
         }
         endpoint.subscribeAcknowledge(mqttSubscribeMessage.messageId(), grantedQosLevels);
     }
 
+
     public void unsubscribeManager(MqttUnsubscribeMessage mqttUnsubscribeMessage, MqttEndpoint endpoint) {
         System.out.println("客户端取消订阅  【主题】:" + mqttUnsubscribeMessage.topics().toString() + " 【MessageID】:" + mqttUnsubscribeMessage.messageId());
-        for (String topic : mqttUnsubscribeMessage.topics()) {
-            topicManager.unSubscribe(new Topic(topic), endpoint);
+        for (String topicName : mqttUnsubscribeMessage.topics()) {
+            Topic topic = new Topic(topicName);
+            rankTopicManager.unsubscribe(topic, endpoint);
         }
-
         endpoint.unsubscribeAcknowledge(mqttUnsubscribeMessage.messageId());
     }
+
+
+    public void publishManager(MqttPublishMessage mqttPublishMessage, MqttEndpoint endpoint) {
+        // endpoint.publishAutoAck(true);  // 自动处理响应
+        System.out.println("客户端发布主题   【主题】:" + mqttPublishMessage.topicName() +
+                " 【服务质量】:" + mqttPublishMessage.qosLevel() +
+                " 【Message】:" + mqttPublishMessage.payload().toString() +
+                " 【保留】:" + mqttPublishMessage.isRetain() +
+                " 【重复】:" + mqttPublishMessage.isDup());
+        // 如果是重复消息说明该设备网络不好，曾经发送过数据但没有收到返回消息
+
+        Topic topic = new Topic(mqttPublishMessage.topicName(), mqttPublishMessage.qosLevel(), mqttPublishMessage.payload(), false, false);
+
+
+        // QoS = 0
+        if (mqttPublishMessage.qosLevel() == MqttQoS.AT_MOST_ONCE) {
+            rankTopicManager.publish(topic);
+            return;
+        }
+
+/**
+ *    QoS = 1
+ *                (PUBLISH)
+ *    publisher   ---------->  Broker
+ *                (PUBACK)
+ *    publisher   <----------  Broker
+ */
+        if (mqttPublishMessage.qosLevel() == MqttQoS.AT_LEAST_ONCE) {
+            endpoint.publishAcknowledge(mqttPublishMessage.messageId());
+            rankTopicManager.publish(topic);
+            return;
+        }
+
+/**
+ *
+ *    QoS = 2
+ *                (PUBLISH)
+ *    publisher   ---------->  Broker
+ *                (PUBREC)
+ *    publisher   <----------  Broker
+ *                (PUBREL)
+ *    publisher   ---------->  Broker
+ *                (PUBCOMP)
+ *    publisher   <----------  Broker
+ *
+ */
+        if (mqttPublishMessage.qosLevel() == MqttQoS.EXACTLY_ONCE) {
+            endpoint.publishReceived(mqttPublishMessage.messageId()).publishReleaseHandler(new Handler<Integer>() {
+                @Override
+                public void handle(Integer integer) {
+                    endpoint.publishComplete(integer);
+                    rankTopicManager.publish(topic);
+                }
+            });
+        }
+    }
+
 
     public void disconnectManager(MqttEndpoint endpoint) {
         System.out.println("客户端【Disconnect】主动断开连接");
         System.out.println("用户【" + endpoint.clientIdentifier() + "】断开连接  【isConnect】:" + endpoint.isConnected()); // true
+        System.out.println("遗嘱:" + endpoint.will().isWillFlag());
+
     }
 
     public void close(MqttEndpoint endpoint) {
         clientID.remove(endpoint.clientIdentifier());
         System.out.println("用户【" + endpoint.clientIdentifier() + "】Close  【isConnect】:" + endpoint.isConnected()); // false
-        // 发布遗嘱
-        if (!StringUtil.isNullOrEmpty(endpoint.will().willTopic())) {
-            topicManager.sendWill(new Topic(endpoint.will().willTopic(), MqttQoS.valueOf(endpoint.will().willQos()), Buffer.buffer(endpoint.will().willMessage()), false, endpoint.will().isWillRetain()));
-        }
+        System.out.println("遗嘱:" + endpoint.will().isWillFlag());
     }
 
     public void setListener(AsyncResult<MqttServer> ar) {
@@ -175,7 +178,7 @@ public class EndpointManager {
     }
 
     public void pingManager(MqttEndpoint endpoint) {
-        System.out.println("客户端心跳  【时间】:" + new Timestamp(System.currentTimeMillis()) + " 【ID】:" + endpoint.clientIdentifier() + " 【AutoKeepAlive】:" + endpoint.isAutoKeepAlive() + " 【isConnected】:" + endpoint.isConnected());
+//        System.out.println("客户端心跳  【时间】:" + new Timestamp(System.currentTimeMillis()) + " 【ID】:" + endpoint.clientIdentifier() + " 【AutoKeepAlive】:" + endpoint.isAutoKeepAlive() + " 【isConnected】:" + endpoint.isConnected());
         if (!endpoint.isAutoKeepAlive()) {
             endpoint.pong();
         }
@@ -183,5 +186,7 @@ public class EndpointManager {
 
     public void exception(MqttEndpoint endpoint, Throwable throwable) {
         System.out.println("客户端【" + endpoint.clientIdentifier() + "】异常断开" + throwable);
+        System.out.println("遗嘱:" + endpoint.will().isWillFlag());
     }
+
 }

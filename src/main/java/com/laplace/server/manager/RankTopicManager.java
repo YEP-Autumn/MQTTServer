@@ -1,10 +1,14 @@
 package com.laplace.server.manager;
 
-import com.laplace.server.bean.RankTopics;
+import com.laplace.server.bean.MqttEndpointPower;
+import com.laplace.server.bean.RankTopic;
 import com.laplace.server.bean.Topic;
+import com.laplace.server.utils.TopicUtils;
 import io.vertx.mqtt.MqttEndpoint;
 
+import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * @Author: YEP
@@ -14,30 +18,43 @@ import java.util.List;
  */
 public class RankTopicManager {
 
-    private List<RankTopics> topTopics;
+    private RankTopic topTopic = new RankTopic("$");
 
-
-    // 订阅之前时要校验格式
-    public boolean topicsValidate(Topic topic) {
-
-        return false;
-    }
 
     // 处理订阅
-    public boolean subscribe(/*Topic topic, 待定*/ MqttEndpoint endpoint) {
+    public void subscribe(Topic topic, MqttEndpoint endpoint) {
 
-        return false;
+        MqttEndpointPower endpointPower = new MqttEndpointPower();
+        endpointPower.setEndpoint(endpoint);
+        endpointPower.setQoS(topic.getQos());
+        topTopic.subscribe(topic.getTopicName(), endpointPower);
+
     }
 
     // 处理取消订阅
-    public boolean unsubscribe(MqttEndpoint endpoint) {
+    public void unsubscribe(Topic topic, MqttEndpoint endpoint) {
 
-        return false;
+        MqttEndpointPower endpointPower = new MqttEndpointPower();
+        endpointPower.setEndpoint(endpoint);
+        topTopic.unSubscribe(topic.getTopicName(), endpointPower);
+
     }
 
     // 发布信息
     public int publish(Topic topic) {
+        LinkedList<MqttEndpointPower> subscribeEndpointPowerLis = topTopic.getSubscribeEndpointPowerLis(topic.getTopicName(), new LinkedList<>());
+        System.out.println("设备数量：" + subscribeEndpointPowerLis.size());
+        subscribeEndpointPowerLis.forEach(new Consumer<MqttEndpointPower>() {
+            @Override
+            public void accept(MqttEndpointPower endpointPower) {
 
+                if (topic.getQos().value() > endpointPower.getQoS().value()) {
+                    topic.setQos(endpointPower.getQoS());
+                }
+
+                TopicUtils.PUBLISH_DISPATCHER(topic, endpointPower.getEndpoint());
+            }
+        });
         return 0;
     }
 

@@ -1,10 +1,11 @@
-package com.laplace.server.manager;
+package com.laplace.server.utils;
 
 import com.laplace.server.bean.Topic;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.Handler;
 import io.vertx.mqtt.MqttEndpoint;
 import lombok.SneakyThrows;
+import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,59 +17,31 @@ import java.util.function.Consumer;
  * @Info:
  * @Email:
  */
-public class TopicManager {
+public class TopicUtils {
 
-     HashMap<Topic, HashSet<MqttEndpoint>> topicEndpoint = new HashMap<>();
+//     HashMap<Topic, HashSet<MqttEndpoint>> topicEndpoint = new HashMap<>();
 
+//
+//    public void subscribe(Topic topic, MqttEndpoint endpoint) {
+//        HashSet<MqttEndpoint> mqttEndpoints = topicEndpoint.get(topic);
+//        if (mqttEndpoints == null) mqttEndpoints = new HashSet<>();
+//        mqttEndpoints.add(endpoint);
+//        topicEndpoint.put(topic, mqttEndpoints);
+//    }
+//
+//    public void unSubscribe(Topic topic, MqttEndpoint endpoint) {
+//        for (int i = 0; i < 3; i++) {
+//            topic.setQos(MqttQoS.valueOf(i));
+//            HashSet<MqttEndpoint> mqttEndpoints = topicEndpoint.get(topic);
+//            if (mqttEndpoints == null) continue;
+//            if (mqttEndpoints.size() == 0) continue;
+//            if (!mqttEndpoints.contains(endpoint)) continue;
+//            mqttEndpoints.remove(endpoint);
+//            topicEndpoint.put(topic, mqttEndpoints);
+//        }
+//    }
 
-    public void subscribe(Topic topic, MqttEndpoint endpoint) {
-        HashSet<MqttEndpoint> mqttEndpoints = topicEndpoint.get(topic);
-        if (mqttEndpoints == null) mqttEndpoints = new HashSet<>();
-        mqttEndpoints.add(endpoint);
-        topicEndpoint.put(topic, mqttEndpoints);
-    }
-
-    public void unSubscribe(Topic topic, MqttEndpoint endpoint) {
-        for (int i = 0; i < 3; i++) {
-            topic.setQos(MqttQoS.valueOf(i));
-            HashSet<MqttEndpoint> mqttEndpoints = topicEndpoint.get(topic);
-            if (mqttEndpoints == null) continue;
-            if (mqttEndpoints.size() == 0) continue;
-            if (!mqttEndpoints.contains(endpoint)) continue;
-            mqttEndpoints.remove(endpoint);
-            topicEndpoint.put(topic, mqttEndpoints);
-        }
-    }
-
-    public  void sendTopic(Topic topic) {
-        for (int i = 0; i < 3; i++) {
-            HashSet<MqttEndpoint> endpoints = topicEndpoint.get(new Topic(topic.getTopicName(), MqttQoS.valueOf(i)));
-            if (endpoints == null) continue;
-            if (endpoints.size() == 0) continue;
-            topic.setQos(topic.getQos().value() < i ? topic.getQos() : MqttQoS.valueOf(i));  // 服务降级
-            int finalI = i;
-            endpoints.forEach(new Consumer<MqttEndpoint>() {
-                @Override
-                public void accept(MqttEndpoint endpoint) {
-                    if (!endpoint.isConnected()) {
-                        endpoints.remove(endpoint);
-                        topicEndpoint.put(new Topic(topic.getTopicName(), MqttQoS.valueOf(finalI)), endpoints);
-                        return;
-                    }
-                    if (endpoint.isCleanSession())
-                        topic.setQos(MqttQoS.AT_MOST_ONCE);  // 如果客户端 cleanSession=true 则以最低的服务质量向其发送消息
-                    PUBLISH_DISPATCHER(topic, endpoint);
-                }
-            });
-        }
-    }
-
-    public void sendWill(Topic topic) {
-
-    }
-
-
-    public  MqttEndpoint PUBLISH_DISPATCHER(Topic topic, MqttEndpoint endpoint) {
+    public static MqttEndpoint PUBLISH_DISPATCHER(Topic topic, MqttEndpoint endpoint) {
         if (MqttQoS.AT_MOST_ONCE.equals(topic.getQos())) {
             PUBLISH_ALL_QoS(topic, endpoint);
             return endpoint;
@@ -85,13 +58,13 @@ public class TopicManager {
     }
 
 
-    public MqttEndpoint PUBLISH_ALL_QoS(Topic topic, MqttEndpoint endpoint) {
+    private static MqttEndpoint PUBLISH_ALL_QoS(Topic topic, MqttEndpoint endpoint) {
         System.out.println("发布");
         return endpoint.publish(topic.getTopicName(), topic.getPayload(), topic.getQos(), topic.isDup(), topic.isRetain());
     }
 
 
-    public MqttEndpoint PUBLISH_AT_LEAST_ONCE(Topic topic, MqttEndpoint endpoint) {
+    private static MqttEndpoint PUBLISH_AT_LEAST_ONCE(Topic topic, MqttEndpoint endpoint) {
         new Thread(new Runnable() {
             @SneakyThrows
             @Override
@@ -116,7 +89,7 @@ public class TopicManager {
         return endpoint;
     }
 
-    public MqttEndpoint PUBLISH_EXACTLY_ONCE(Topic topic, MqttEndpoint endpoint) {
+    private static MqttEndpoint PUBLISH_EXACTLY_ONCE(Topic topic, MqttEndpoint endpoint) {
         System.out.println("转发服务质量为2的消息");
         new Thread(new Runnable() {
             @SneakyThrows
@@ -146,4 +119,35 @@ public class TopicManager {
         return endpoint;
     }
 
+
+    // 订阅之前时要校验格式
+    public static boolean topicsValidate(Topic topic) {
+        if ("#".equals(topic.getTopicName()) || "+".equals(topic.getTopicName())) return true;
+        String replace = topic.getTopicName();
+        if (replace.contains("+")) {
+            // 去除符合条件的+
+            replace = StringUtils.replace(replace, "/+/", "//");
+            if (replace.startsWith("+/")) {
+                // 去除最前端的   +/
+                replace = replace.substring(1);
+            }
+            if (replace.endsWith("/+")) {
+                // 去除最后端的    /+
+                replace = replace.substring(0, replace.length() - 1);
+            }
+            if (replace.contains("+")) {
+                //  剩下的 + 就是不符合条件的+
+                return false;
+            }
+        }
+        if (replace.contains("#")) {
+            // 如果有#  就必须在最后  且只能是/#  且只有一个
+            if (replace.endsWith("/#")) {
+                // 去除末尾
+                replace = replace.substring(0, replace.length() - 1);
+            }
+            return !replace.contains("#");
+        }
+        return true;
+    }
 }
