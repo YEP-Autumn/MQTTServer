@@ -19,7 +19,7 @@ public class MQTTClient {
 
     public static void main(String[] args) throws MqttException, InterruptedException {
         MqttConnectOptions options = new MqttConnectOptions();
-        options.setCleanSession(false);
+        options.setCleanSession(true);
         options.setKeepAliveInterval(60);
         options.setUserName("2017248646");
         options.setPassword("2017248646Ss.".toCharArray());
@@ -30,14 +30,14 @@ public class MQTTClient {
 //            System.out.println(s);
 //            System.out.println(mqttMessage.toString());
 //        });
+
+        Thread.sleep(10000);
+
         client.subscribe("test", 2, (s, mqttMessage) -> {
             System.out.println(s);
             System.out.println(mqttMessage.toString());
         });
 
-//        Thread.sleep(15000);
-//
-//        client.disconnect();
 
     }
 }

@@ -86,6 +86,7 @@ public class MQTTServices {
             EndpointTopicsManagement.addSubscribeTopics(endpoint.clientIdentifier(), new Topic(topic.getTopicName(), s.qualityOfService()));  // 保存该endpoint订阅过的主题
         }
         endpoint.subscribeAcknowledge(mqttSubscribeMessage.messageId(), grantedQosLevels);
+
     }
 
 

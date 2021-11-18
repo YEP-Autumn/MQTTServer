@@ -5,6 +5,7 @@ import io.vertx.mqtt.MqttEndpoint;
 import lombok.Data;
 
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -73,7 +74,7 @@ public class RankTopic {
             if (positionW == -1) {
                 // 如果没有直接添加
                 this.wildcardAll.add(clientIdentifier);
-                return ;
+                return;
             }
             return;
         }
@@ -91,7 +92,7 @@ public class RankTopic {
                 subEndpoints.add(clientIdentifier);
                 return;
             }
-            String power = this.subTopics.get(positionWO).getEndpoints().get(positionWO);
+
             return;
         }
 
@@ -140,19 +141,16 @@ public class RankTopic {
     public void unSubscribe(String topic, String clientIdentifier) {
 
         if ("#".equals(topic)) {
-            System.out.println("#");
             this.wildcardAll.removeFirstOccurrence(clientIdentifier);
             return;
         }
 
         if ("+".equals(topic)) {
-            System.out.println("+");
             this.wildcardOne.getEndpoints().removeFirstOccurrence(clientIdentifier);
             return;
         }
 
         if (!topic.contains("/")) {
-            System.out.println("no '/'");
             int position = this.subTopics.indexOf(new RankTopic(topic));
             if (position == -1) return;
             boolean b = this.subTopics.get(position).getEndpoints().removeFirstOccurrence(clientIdentifier);
@@ -164,16 +162,13 @@ public class RankTopic {
         String thisTopic = topic.substring(0, splitPosition);
         String subTopic = topic.substring(splitPosition + 1);
         if ("+".equals(thisTopic)) {
-            System.out.println("+/");
             this.wildcardOne.unSubscribe(subTopic, clientIdentifier);
         }
 
         int i = this.subTopics.indexOf(new RankTopic(thisTopic));
         if (i == -1) {
-            System.out.println("-1         " + thisTopic);
             return;
         }
-        System.out.println("next");
         this.subTopics.get(i).unSubscribe(subTopic, clientIdentifier);
     }
 
@@ -181,7 +176,6 @@ public class RankTopic {
     // 获取需要发布的设备
     public LinkedList<String> getSubscribeEndpointPowerLis(String topic, LinkedList<String> endpointClientIdentifiers) {
         endpointClientIdentifiers.addAll(this.wildcardAll);
-        System.out.println(topic + "             " + endpointClientIdentifiers.size());
         if (!topic.contains("/")) {
             // 如果不包含 / 说明已经是最后一个层级了
             if (this.wildcardOne != null) {
@@ -226,9 +220,19 @@ public class RankTopic {
         return this.subTopics.get(subPosition).getSubscribeEndpointPowerLis(subTopic, endpointClientIdentifiers);  // 如果存在thisTopic这个层级继续向下索引
     }
 
-    private boolean sendRetain(boolean isRetain, Topic topic, MqttEndpoint endpoint) {
+    private boolean sendRetain(RankTopic rankTopic, String clientIdentifier) {
 
         return isRetain;
     }
 
+    private boolean sendRetain(List<RankTopic> rankTopics, String clientIdentifier) {
+        boolean haveRetain = false;
+        for (RankTopic rankTopic : rankTopics) {
+            boolean b = sendRetain(rankTopic, clientIdentifier);
+            if (b) {
+                haveRetain = true;
+            }
+        }
+        return haveRetain;
+    }
 }

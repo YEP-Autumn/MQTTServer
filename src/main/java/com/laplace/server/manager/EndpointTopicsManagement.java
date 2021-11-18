@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * @Author: YEP
@@ -29,9 +28,11 @@ public class EndpointTopicsManagement {
             topics = subscribeTopics.get(clientIdentifier);
 
             int position = topics.indexOf(topic);
-            if (position != -1) {
+            if (position == -1) {
+                // 如果不存在直接添加
                 topics.add(topic);
-            } else if (topics.get(position).getQos().value() < topic.getQos().value()) {
+            } else if (topic.getQos().value() > topics.get(position).getQos().value()) {
+                // 如果存在且服务质量比之前的服务质量大
                 topics.get(position).setQos(topic.getQos());
             }
 
@@ -43,6 +44,7 @@ public class EndpointTopicsManagement {
     }
 
     public static void removeSubscribeTopics(String clientIdentifier, Topic topic) {
+
         if (subscribeTopics.containsKey(clientIdentifier)) {
             LinkedList<Topic> list = subscribeTopics.get(clientIdentifier);
             if (list != null) list.remove(topic);
