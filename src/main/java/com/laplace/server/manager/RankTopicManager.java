@@ -1,13 +1,13 @@
 package com.laplace.server.manager;
 
 import com.laplace.server.bean.MqttEndpointPower;
-import com.laplace.server.bean.RankTopic;
+import com.laplace.server.core.RankTopic;
 import com.laplace.server.bean.Topic;
 import com.laplace.server.utils.TopicUtils;
 import io.vertx.mqtt.MqttEndpoint;
 
+import javax.xml.ws.Endpoint;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -20,36 +20,26 @@ public class RankTopicManager {
 
     private RankTopic topTopic = new RankTopic("$");
 
-
     // 处理订阅
     public void subscribe(Topic topic, MqttEndpoint endpoint) {
-
-        MqttEndpointPower endpointPower = new MqttEndpointPower();
-        endpointPower.setEndpoint(endpoint);
-        endpointPower.setQoS(topic.getQos());
-        topTopic.subscribe(topic.getTopicName(), endpointPower);
-
+        topTopic.subscribe(topic.getTopicName(), endpoint.clientIdentifier());
     }
 
     // 处理取消订阅
-    public void unsubscribe(Topic topic, MqttEndpoint endpoint) {
-
-        MqttEndpointPower endpointPower = new MqttEndpointPower();
-        endpointPower.setEndpoint(endpoint);
-        topTopic.unSubscribe(topic.getTopicName(), endpointPower);
-
+    public void unsubscribe(String topicName, MqttEndpoint endpoint) {
+        topTopic.unSubscribe(topicName, endpoint.clientIdentifier());
     }
 
     // 发布信息
     public int publish(Topic topic) {
-        LinkedList<MqttEndpointPower> subscribeEndpointPowerLis = topTopic.getSubscribeEndpointPowerLis(topic.getTopicName(), new LinkedList<>());
+        LinkedList<String> subscribeEndpointPowerLis = topTopic.getSubscribeEndpointPowerLis(topic.getTopicName(), new LinkedList<>());
         System.out.println("设备数量：" + subscribeEndpointPowerLis.size());
-        subscribeEndpointPowerLis.forEach(new Consumer<MqttEndpointPower>() {
+        subscribeEndpointPowerLis.forEach(new Consumer<String>() {
             @Override
-            public void accept(MqttEndpointPower endpointPower) {
-
-                if (topic.getQos().value() > endpointPower.getQoS().value()) {
-                    topic.setQos(endpointPower.getQoS());
+            public void accept(String clientIdentifier) {
+                MqttEndpointPower endpoint = EndpointManager.getEndpointByClientIdentifier(clientIdentifier);
+                if (topic.getQos().value() > endpoint.getQoS().value()) {
+                    topic.setQos(endpoint.getQoS());
                 }
 
                 TopicUtils.PUBLISH_DISPATCHER(topic, endpointPower.getEndpoint());

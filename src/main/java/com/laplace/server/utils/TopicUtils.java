@@ -9,6 +9,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.function.Consumer;
 
 /**
@@ -19,27 +20,37 @@ import java.util.function.Consumer;
  */
 public class TopicUtils {
 
-//     HashMap<Topic, HashSet<MqttEndpoint>> topicEndpoint = new HashMap<>();
+    // 离线消息队列
+    private final static HashMap<String, LinkedList<Topic>> offlineTopic = new HashMap<>();
 
-//
-//    public void subscribe(Topic topic, MqttEndpoint endpoint) {
-//        HashSet<MqttEndpoint> mqttEndpoints = topicEndpoint.get(topic);
-//        if (mqttEndpoints == null) mqttEndpoints = new HashSet<>();
-//        mqttEndpoints.add(endpoint);
-//        topicEndpoint.put(topic, mqttEndpoints);
-//    }
-//
-//    public void unSubscribe(Topic topic, MqttEndpoint endpoint) {
-//        for (int i = 0; i < 3; i++) {
-//            topic.setQos(MqttQoS.valueOf(i));
-//            HashSet<MqttEndpoint> mqttEndpoints = topicEndpoint.get(topic);
-//            if (mqttEndpoints == null) continue;
-//            if (mqttEndpoints.size() == 0) continue;
-//            if (!mqttEndpoints.contains(endpoint)) continue;
-//            mqttEndpoints.remove(endpoint);
-//            topicEndpoint.put(topic, mqttEndpoints);
-//        }
-//    }
+
+    // 添加离线消息
+    public static void addOfflineTopic(String clientIdentifier, Topic topic) {
+        LinkedList<Topic> topics;
+        if (offlineTopic.containsKey(clientIdentifier)) {
+            topics = offlineTopic.get(clientIdentifier);
+        } else {
+            topics = new LinkedList<>();
+        }
+        topics.add(topic);
+        offlineTopic.put(clientIdentifier, topics);
+    }
+
+    // 是否有离线消息
+    public static boolean hasOfflineTopic(MqttEndpoint endpoint) {
+        return offlineTopic.containsKey(endpoint.clientIdentifier());
+    }
+
+    // 发送离线消息
+    public static void publishOfflineTopic(MqttEndpoint endpoint) {
+        offlineTopic.get(endpoint.clientIdentifier()).forEach(new Consumer<Topic>() {
+            @Override
+            public void accept(Topic topic) {
+                PUBLISH_DISPATCHER(topic, endpoint);
+            }
+        });
+        offlineTopic.remove(endpoint.clientIdentifier());
+    }
 
     public static MqttEndpoint PUBLISH_DISPATCHER(Topic topic, MqttEndpoint endpoint) {
         if (MqttQoS.AT_MOST_ONCE.equals(topic.getQos())) {
@@ -59,8 +70,19 @@ public class TopicUtils {
 
 
     private static MqttEndpoint PUBLISH_ALL_QoS(Topic topic, MqttEndpoint endpoint) {
-        System.out.println("发布");
-        return endpoint.publish(topic.getTopicName(), topic.getPayload(), topic.getQos(), topic.isDup(), topic.isRetain());
+        // 如果客户端是连接状态则直接发送
+        if (endpoint.isConnected()) {
+            endpoint.publish(topic.getTopicName(), topic.getPayload(), topic.getQos(), topic.isDup(), topic.isRetain());
+            return endpoint;
+        }
+        // 如果客户端的cleanSession为true 说明需要清理会话 不用保存离线消息
+        // PS:因为客户端close时，取消了需要清理会话的客户端的订阅，所有出现这种情况是意外事件，可能程序逻辑有问题
+        if (endpoint.isCleanSession()) {
+            System.out.println("有不用保存离线消息的客户端断线,订阅消息没有及时清空！！！");
+            return endpoint;
+        }
+        addOfflineTopic(endpoint.clientIdentifier(), topic);
+        return endpoint;
     }
 
 
@@ -75,7 +97,7 @@ public class TopicUtils {
                     PUBLISH_ALL_QoS(topic, endpoint).publishAcknowledgeHandler(new Handler<Integer>() {
                         @Override
                         public void handle(Integer integer) {
-                            System.out.println("收到Acknowledge的确认消息");
+                            System.out.println("收到客户端【" + endpoint.clientIdentifier() + "】报文标识为【" + integer + "】的Acknowledge确认消息");
                             isReceived[0] = true;
                         }
                     });
@@ -104,7 +126,7 @@ public class TopicUtils {
                             endpoint.publishRelease(integer).publishCompleteHandler(new Handler<Integer>() {
                                 @Override
                                 public void handle(Integer integer) {
-                                    System.out.println("收到Completed的确认消息");
+                                    System.out.println("收到客户端【" + endpoint.clientIdentifier() + "】报文标识为【" + integer + "】的Completed确认消息");
                                     isCompleted[0] = true;
                                 }
                             });

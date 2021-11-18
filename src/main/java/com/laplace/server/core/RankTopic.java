@@ -1,5 +1,8 @@
-package com.laplace.server.bean;
+package com.laplace.server.core;
 
+import com.laplace.server.bean.MqttEndpointPower;
+import com.laplace.server.bean.Topic;
+import io.vertx.mqtt.MqttEndpoint;
 import lombok.Data;
 
 import java.util.LinkedList;
@@ -28,10 +31,10 @@ public class RankTopic {
     private RankTopic wildcardOne;
 
     // #通配符设备
-    private LinkedList<MqttEndpointPower> wildcardAll;
+    private LinkedList<String> wildcardAll;
 
     // 订阅该层级主题的设备
-    private LinkedList<MqttEndpointPower> endpoints;
+    private LinkedList<String> endpoints;
 
     // 该层级的主题是否有保留消息
     private boolean isRetain;
@@ -63,37 +66,33 @@ public class RankTopic {
 
 
     // 向子主题中添加订阅
-    public void subscribe(String topic, MqttEndpointPower endpointPower) {
+    public void subscribe(String topic, String clientIdentifier) {
         // 如果topic为#通配符将其加入该层级下的#通配符设备中
         if ("#".equals(topic)) {
             // 查找这个设备是否订阅过该层级主题
-            int positionW = this.wildcardAll.indexOf(endpointPower);
+            int positionW = this.wildcardAll.indexOf(clientIdentifier);
             if (positionW == -1) {
                 // 如果没有直接添加
-                this.wildcardAll.add(endpointPower);
-                return;
+                this.wildcardAll.add(clientIdentifier);
+                return ;
             }
-            // 如果订阅过  使用最高质量的订阅
-            MqttEndpointPower power = this.wildcardAll.get(positionW);
-            power.setQoS(power.getQoS().value() > endpointPower.getQoS().value() ? power.getQoS() : endpointPower.getQoS());
             return;
         }
         if ("+".equals(topic)) {
 
             if (this.wildcardOne == null) {
                 this.wildcardOne = new RankTopic("+");
-                this.wildcardOne.getEndpoints().add(endpointPower);
+                this.wildcardOne.getEndpoints().add(clientIdentifier);
                 return;
             }
 
-            LinkedList<MqttEndpointPower> subEndpoints = this.wildcardOne.getEndpoints();
-            int positionWO = subEndpoints.indexOf(endpointPower);
+            LinkedList<String> subEndpoints = this.wildcardOne.getEndpoints();
+            int positionWO = subEndpoints.indexOf(clientIdentifier);
             if (positionWO == -1) {
-                subEndpoints.add(endpointPower);
+                subEndpoints.add(clientIdentifier);
                 return;
             }
-            MqttEndpointPower power = this.subTopics.get(positionWO).getEndpoints().get(positionWO);
-            power.setQoS(power.getQoS().value() > endpointPower.getQoS().value() ? power.getQoS() : endpointPower.getQoS());
+            String power = this.subTopics.get(positionWO).getEndpoints().get(positionWO);
             return;
         }
 
@@ -108,24 +107,14 @@ public class RankTopic {
                 position = this.subTopics.size() - 1;
             }
             // 得到订阅了这个层级主题的设备
-            LinkedList<MqttEndpointPower> subEndpoints = this.subTopics.get(position).getEndpoints();
+            LinkedList<String> subEndpoints = this.subTopics.get(position).getEndpoints();
             // 查找这个设备有没有订阅过该层级主题
-            int positionE = subEndpoints.indexOf(endpointPower);
-            if (positionE == -1) {
+            if (!subEndpoints.contains(clientIdentifier)) {
                 // 如果没有直接向这个层级主题中添加该设备
-                System.out.println("没有订阅过");
-                subEndpoints.add(endpointPower);
+                subEndpoints.add(clientIdentifier);
                 return;
             }
-            // 如果订阅过  使用最高质量的订阅
-            MqttEndpointPower power = this.subTopics.get(position).getEndpoints().get(positionE);
-            power.setQoS(power.getQoS().value() > endpointPower.getQoS().value() ? power.getQoS() : endpointPower.getQoS());
-            System.out.println("订阅过  使用最高质量的订阅" + power.getQoS().value());
             return;
-
-//            subTopics.get(position).getEndpoints().add(endpointPower);
-//            this.endpoints.add(endpointPower);
-//            return;
         }
         int splitPosition = topic.indexOf("/");
         String thisTopic = topic.substring(0, splitPosition);
@@ -135,7 +124,7 @@ public class RankTopic {
             if (this.wildcardOne == null) {
                 this.wildcardOne = new RankTopic("+");
             }
-            this.wildcardOne.subscribe(subTopic, endpointPower);
+            this.wildcardOne.subscribe(subTopic, clientIdentifier);
             return;
         }
 
@@ -145,21 +134,21 @@ public class RankTopic {
             this.subTopics.add(rankTopic);
             position = this.subTopics.size() - 1;
         }
-        this.subTopics.get(position).subscribe(subTopic, endpointPower);
+        this.subTopics.get(position).subscribe(subTopic, clientIdentifier);
 
     }
 
-    public void unSubscribe(String topic, MqttEndpointPower endpointPower) {
+    public void unSubscribe(String topic, String clientIdentifier) {
 
         if ("#".equals(topic)) {
             System.out.println("#");
-            this.wildcardAll.removeFirstOccurrence(endpointPower);
+            this.wildcardAll.removeFirstOccurrence(clientIdentifier);
             return;
         }
 
         if ("+".equals(topic)) {
             System.out.println("+");
-            this.wildcardOne.getEndpoints().removeFirstOccurrence(endpointPower);
+            this.wildcardOne.getEndpoints().removeFirstOccurrence(clientIdentifier);
             return;
         }
 
@@ -167,7 +156,7 @@ public class RankTopic {
             System.out.println("no '/'");
             int position = this.subTopics.indexOf(new RankTopic(topic));
             if (position == -1) return;
-            boolean b = this.subTopics.get(position).getEndpoints().removeFirstOccurrence(endpointPower);
+            boolean b = this.subTopics.get(position).getEndpoints().removeFirstOccurrence(clientIdentifier);
             System.out.println(b);
             return;
         }
@@ -177,7 +166,7 @@ public class RankTopic {
         String subTopic = topic.substring(splitPosition + 1);
         if ("+".equals(thisTopic)) {
             System.out.println("+/");
-            this.wildcardOne.unSubscribe(subTopic, endpointPower);
+            this.wildcardOne.unSubscribe(subTopic, clientIdentifier);
         }
 
         int i = this.subTopics.indexOf(new RankTopic(thisTopic));
@@ -186,55 +175,61 @@ public class RankTopic {
             return;
         }
         System.out.println("next");
-        this.subTopics.get(i).unSubscribe(subTopic, endpointPower);
+        this.subTopics.get(i).unSubscribe(subTopic, clientIdentifier);
     }
 
 
     // 获取需要发布的设备
-    public LinkedList<MqttEndpointPower> getSubscribeEndpointPowerLis(String topic, LinkedList<MqttEndpointPower> endpoints) {
-        endpoints.addAll(this.wildcardAll);
-        System.out.println(topic + "             " + endpoints.size());
+    public LinkedList<String> getSubscribeEndpointPowerLis(String topic, LinkedList<String> endpointClientIdentifiers) {
+        endpointClientIdentifiers.addAll(this.wildcardAll);
+        System.out.println(topic + "             " + endpointClientIdentifiers.size());
         if (!topic.contains("/")) {
+            // 如果不包含 / 说明已经是最后一个层级了
             if (this.wildcardOne != null) {
-                endpoints.addAll(this.wildcardOne.getEndpoints());
+                // 添加订阅了 + 层级的
+                endpointClientIdentifiers.addAll(this.wildcardOne.getEndpoints());
             }
 
-
             {   // 添加订阅下一个层级主题的 #
-                LinkedList<MqttEndpointPower> finalEndpoints = new LinkedList<>();
+                LinkedList<String> finalEndpoints = new LinkedList<>();
                 this.subTopics.forEach(new Consumer<RankTopic>() {
                     @Override
                     public void accept(RankTopic rankTopic) {
                         finalEndpoints.addAll(rankTopic.getWildcardAll());
                     }
                 });
-                endpoints.addAll(finalEndpoints);
+                endpointClientIdentifiers.addAll(finalEndpoints);
                 if (this.getWildcardOne() != null) {
-                    endpoints.addAll(this.getWildcardOne().getWildcardAll());
+                    // 添加 + 层级 下一个层级的#
+                    endpointClientIdentifiers.addAll(this.getWildcardOne().getWildcardAll());
                 }
             }
 
             // 添加该主题下的设备
             int position = this.subTopics.indexOf(new RankTopic(topic));
-            if (position == -1) return endpoints;
-            endpoints.addAll(this.subTopics.get(position).getEndpoints());
-            return endpoints;
+            if (position == -1) return endpointClientIdentifiers;
+            endpointClientIdentifiers.addAll(this.subTopics.get(position).getEndpoints());
+            return endpointClientIdentifiers;
         }
 
-        int splitPosition = topic.indexOf("/");
+        // 如果不是最终层级继续向下索引(递归查找)
+        int splitPosition = topic.indexOf("/");  // 将topic切片,区分出这个层级的子层级和剩余层级   a/b/c  ——>  a 和 b/c
         String thisTopic = topic.substring(0, splitPosition);
         String subTopic = topic.substring(splitPosition + 1);
 
-        // 处理 +
+        // 处理订阅  +  层级的设备
         if (this.wildcardOne != null) {
-            System.out.println("处理+");
-            endpoints = this.wildcardOne.getSubscribeEndpointPowerLis(subTopic, endpoints);
+            endpointClientIdentifiers = this.wildcardOne.getSubscribeEndpointPowerLis(subTopic, endpointClientIdentifiers);
         }
 
         int subPosition = this.subTopics.indexOf(new RankTopic(thisTopic));
-        if (subPosition == -1) return endpoints;
-        System.out.println("下一层级");
-        return this.subTopics.get(subPosition).getSubscribeEndpointPowerLis(subTopic, endpoints);
+        if (subPosition == -1) return endpointClientIdentifiers;  // 如果没有这个层级 说明没有订阅了这个层级的设备，直接返回索引结果
+        return this.subTopics.get(subPosition).getSubscribeEndpointPowerLis(subTopic, endpointClientIdentifiers);  // 如果存在thisTopic这个层级继续向下索引
+    }
+
+    private boolean sendRetain(boolean isRetain, Topic topic, MqttEndpoint endpoint) {
+
+        return isRetain;
     }
 
 }

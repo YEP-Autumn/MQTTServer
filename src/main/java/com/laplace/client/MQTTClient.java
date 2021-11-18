@@ -17,25 +17,28 @@ import java.util.List;
  */
 public class MQTTClient {
 
-    public static void main(String[] args) throws MqttException {
+    public static void main(String[] args) throws MqttException, InterruptedException {
         MqttConnectOptions options = new MqttConnectOptions();
-        options.setWill("sfs", "wsfs".getBytes(StandardCharsets.UTF_8), 2, false);
-        options.setCleanSession(true);
-        options.setKeepAliveInterval(5);
-        options.setUserName("2017248646");
+        options.setCleanSession(false);
+        options.setKeepAliveInterval(60);
+//        options.setUserName("2017248646");
         options.setPassword("2017248646Ss.".toCharArray());
 //        options.setAutomaticReconnect(true);
-        MqttClient client = new MqttClient("tcp://localhost:1883", "6fc1d435d5b546558ab16ce6a76938d4");
+        MqttClient client = new MqttClient("tcp://test.ranye-iot.net:1883", "6fc1d435d5b546558ab16ce6a76938d4");  // test.ranye-iot.net
         client.connect(options);
-        client.subscribe("w", 0, (s, mqttMessage) -> {
+//        client.subscribe("w", 0, (s, mqttMessage) -> {
+//            System.out.println(s);
+//            System.out.println(mqttMessage.toString());
+//        });
+        Thread.sleep(10000);
+        client.subscribe("test", 2, (s, mqttMessage) -> {
             System.out.println(s);
             System.out.println(mqttMessage.toString());
         });
-        client.subscribe("my_topic/sd/+/#", 2, (s, mqttMessage) -> {
-            System.out.println(s);
-            System.out.println(mqttMessage.toString());
-        });
-//        client.subscribeWithResponse();
+
+//        Thread.sleep(15000);
+//
+//        client.disconnect();
 
     }
 }

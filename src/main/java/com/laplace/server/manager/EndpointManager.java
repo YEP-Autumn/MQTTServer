@@ -1,6 +1,8 @@
 package com.laplace.server.manager;
 
+import com.laplace.server.bean.MqttEndpointPower;
 import com.laplace.server.bean.Topic;
+import com.laplace.server.utils.TopicUtils;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.AsyncResult;
@@ -13,9 +15,8 @@ import io.vertx.mqtt.messages.MqttSubscribeMessage;
 import io.vertx.mqtt.messages.MqttUnsubscribeMessage;
 
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
+import java.util.function.Consumer;
 
 /**
  * @Author: YEP
@@ -26,63 +27,71 @@ import java.util.List;
 public class EndpointManager {
 
 
-    private HashSet<String> clientID = new HashSet<>();
+    // 用于客户端正常离线 取消订阅
+    private final HashMap<String, LinkedList<String>> subscribeTopics = new HashMap<>();
 
+    private static final HashMap<String, MqttEndpointPower> endpoints = new HashMap<>();
 
     RankTopicManager rankTopicManager = new RankTopicManager();
 
-    public void dealWithLogin(MqttEndpoint endpoint) {
+    public boolean dealWithLogin(MqttEndpoint endpoint) {
         // 接受客户端连接
         System.out.println("有新客户端连接");
-        // 如果集合中不存在这个ID 说明客户端未曾连接
-        if (!clientID.contains(endpoint.clientIdentifier())) {
-
-            // 打印用户登录信息
-            System.out.println("【ClientID】:" + endpoint.clientIdentifier() + " 【连接状态】" + endpoint.isConnected() + " 【CleanSession】" + endpoint.isCleanSession());
-
-            // 处理客户端的用户名密码
-            if (endpoint.auth() == null) {
-                // 如果没有密码拒绝连接
-                System.out.println("用户连接没有携带用户名密码");
-                endpoint.reject(MqttConnectReturnCode.CONNECTION_REFUSED_NOT_AUTHORIZED);
-                return;
-            }
-
-            // 打印用户名密码信息
-            System.out.println("[username = " + endpoint.auth().userName() + ", password = " + endpoint.auth().password() + "]");
-            if (!("2017248646".equals(endpoint.auth().userName()) || "2017248646Ss.".equals(endpoint.auth().password()))) {
-                // 如果密码错误拒绝连接
-                System.out.println("不支持的用户名密码");
-                endpoint.reject(MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USER_NAME_OR_PASSWORD);
-                return;
-            }
-
-            // 处理客户端的遗嘱
-//            if (endpoint.will().isWillFlag() && !StringUtil.isNullOrEmpty(endpoint.will().willTopic()) && !StringUtil.isNullOrEmpty(endpoint.will().willMessage())) {
-            System.out.println("遗嘱:" + endpoint.will().isWillFlag() + " 【主题】:" + endpoint.will().willTopic() + " 【服务质量】:" + endpoint.will().willQos() + " 【Message】:" + endpoint.will().willMessage() + " 【保留】:" + endpoint.will().isWillRetain() + " 【Flag】:" + endpoint.will().isWillFlag());
-//            }
-            // 接收用户连接请求
-            clientID.add(endpoint.clientIdentifier());
-            endpoint.autoKeepAlive(false);  // 自动保持连接,默认为true
-            endpoint.accept(false);  // 是否存在未确认的会话 sessionPresent
-
-        } else {
-            // 如果客户端ClientID已被使用
-            System.out.println("客户端ID:" + endpoint.clientIdentifier() + "已被使用");
-            endpoint.reject(MqttConnectReturnCode.CONNECTION_REFUSED_IDENTIFIER_REJECTED);
-            return;
+        // 如果集合中存在这个ID-----偷天换日
+        if (endpoints.containsKey(endpoint.clientIdentifier())) {
+            endpoints.get(endpoint.clientIdentifier()).getEndpoint().close();
         }
+        endpoints.put(endpoint.clientIdentifier(), new MqttEndpointPower(endpoint));
+
+        // 打印用户登录信息
+        System.out.println("【ClientID】:" + endpoint.clientIdentifier() + " 【连接状态】" + endpoint.isConnected() + " 【CleanSession】" + endpoint.isCleanSession());
+
+        // 处理客户端的用户名密码
+        if (endpoint.auth() == null) {
+            // 如果没有密码拒绝连接
+            System.out.println("用户连接没有携带用户名密码");
+            endpoint.reject(MqttConnectReturnCode.CONNECTION_REFUSED_NOT_AUTHORIZED);
+            return false;
+        }
+
+        // 打印用户名密码信息
+        System.out.println("[username = " + endpoint.auth().userName() + ", password = " + endpoint.auth().password() + "]");
+        if (!("2017248646".equals(endpoint.auth().userName()) || "2017248646Ss.".equals(endpoint.auth().password()))) {
+            // 如果密码错误拒绝连接
+            System.out.println("不支持的用户名密码");
+            endpoint.reject(MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USER_NAME_OR_PASSWORD);
+            return false;
+        }
+
+        // 接收用户连接请求
+        endpoint.autoKeepAlive(false);  // 自动保持连接,默认为true
+
+        // 如果客户端需要干净的会话，清理之前客户端的残留
+        if (endpoint.isCleanSession()){
+            endpoint.accept(false);
+            removeAllSubscribeTopics(endpoint);
+            return true;
+        }
+        // 是否存在未确认的会话
+        boolean hasOfflineTopic = TopicUtils.hasOfflineTopic(endpoint);
+        endpoint.accept(hasOfflineTopic);
+        if (hasOfflineTopic){
+            TopicUtils.publishOfflineTopic(endpoint);
+        }
+        return true;
     }
 
 
     public void subscribeManager(MqttSubscribeMessage mqttSubscribeMessage, MqttEndpoint endpoint) {
+
         List<MqttQoS> grantedQosLevels = new ArrayList<>();
         for (MqttTopicSubscription s : mqttSubscribeMessage.topicSubscriptions()) {
             System.out.println("【订阅主题】:" + s.topicName() + " 【服务质量】:" + s.qualityOfService());
             grantedQosLevels.add(s.qualityOfService());
             Topic topic = new Topic(s.topicName(), s.qualityOfService());
+            if (!TopicUtils.topicsValidate(topic)) endpoint.close(); // 如果订阅主题不符合规定直接关闭连接
             rankTopicManager.subscribe(topic, endpoint);
-//            topicManager.subscribe(new Topic(s.topicName(), s.qualityOfService()), endpoint);  // 处理主题订阅
+            addSubscribeTopics(endpoint.clientIdentifier(), topic.getTopicName());  // 保存该endpoint订阅过的主题
         }
         endpoint.subscribeAcknowledge(mqttSubscribeMessage.messageId(), grantedQosLevels);
     }
@@ -92,7 +101,8 @@ public class EndpointManager {
         System.out.println("客户端取消订阅  【主题】:" + mqttUnsubscribeMessage.topics().toString() + " 【MessageID】:" + mqttUnsubscribeMessage.messageId());
         for (String topicName : mqttUnsubscribeMessage.topics()) {
             Topic topic = new Topic(topicName);
-            rankTopicManager.unsubscribe(topic, endpoint);
+            rankTopicManager.unsubscribe(topic.getTopicName(), endpoint);
+            removeSubscribeTopics(endpoint.clientIdentifier(), topic.getTopicName());
         }
         endpoint.unsubscribeAcknowledge(mqttUnsubscribeMessage.messageId());
     }
@@ -155,6 +165,7 @@ public class EndpointManager {
 
 
     public void disconnectManager(MqttEndpoint endpoint) {
+
         System.out.println("客户端【Disconnect】主动断开连接");
         System.out.println("用户【" + endpoint.clientIdentifier() + "】断开连接  【isConnect】:" + endpoint.isConnected()); // true
         System.out.println("遗嘱:" + endpoint.will().isWillFlag());
@@ -162,7 +173,8 @@ public class EndpointManager {
     }
 
     public void close(MqttEndpoint endpoint) {
-        clientID.remove(endpoint.clientIdentifier());
+        if (endpoint.isCleanSession()) removeAllSubscribeTopics(endpoint);  // 正常断线 且清理回话为true，删除所有订阅信息
+
         System.out.println("用户【" + endpoint.clientIdentifier() + "】Close  【isConnect】:" + endpoint.isConnected()); // false
         System.out.println("遗嘱:" + endpoint.will().isWillFlag());
     }
@@ -177,11 +189,13 @@ public class EndpointManager {
         }
     }
 
+    // 处理客户端心跳请求
     public void pingManager(MqttEndpoint endpoint) {
-//        System.out.println("客户端心跳  【时间】:" + new Timestamp(System.currentTimeMillis()) + " 【ID】:" + endpoint.clientIdentifier() + " 【AutoKeepAlive】:" + endpoint.isAutoKeepAlive() + " 【isConnected】:" + endpoint.isConnected());
-        if (!endpoint.isAutoKeepAlive()) {
-            endpoint.pong();
+        if (endpoint.isAutoKeepAlive()) {
+            return;
         }
+        // 如果服务端没有开启自动保持心跳  则发送保持心跳响应包
+        endpoint.pong();
     }
 
     public void exception(MqttEndpoint endpoint, Throwable throwable) {
@@ -189,4 +203,42 @@ public class EndpointManager {
         System.out.println("遗嘱:" + endpoint.will().isWillFlag());
     }
 
+
+    public void addSubscribeTopics(String clientIdentifier, String topic) {
+        LinkedList<String> topics;
+        if (subscribeTopics.containsKey(clientIdentifier)) {
+            topics = subscribeTopics.get(clientIdentifier);
+            topics.add(topic);
+        } else {
+            topics = new LinkedList<>();
+            topics.add(topic);
+            subscribeTopics.put(clientIdentifier, topics);
+        }
+        System.out.println(subscribeTopics);
+    }
+
+    public void removeSubscribeTopics(String clientIdentifier, String topic) {
+        if (subscribeTopics.containsKey(clientIdentifier)) {
+            LinkedList<String> list = subscribeTopics.get(clientIdentifier);
+            list.remove(topic);
+        }
+        System.out.println(subscribeTopics);
+    }
+
+    public void removeAllSubscribeTopics(MqttEndpoint endpoint) {
+        if (subscribeTopics.containsKey(endpoint.clientIdentifier())) {
+            subscribeTopics.get(endpoint.clientIdentifier()).forEach(new Consumer<String>() {
+                @Override
+                public void accept(String topicName) {
+                    rankTopicManager.unsubscribe(topicName, endpoint);
+                }
+            });
+            subscribeTopics.remove(endpoint.clientIdentifier());
+        }
+    }
+
+
+    public static MqttEndpointPower getEndpointByClientIdentifier(String clientIdentifier) {
+        return endpoints.get(clientIdentifier);
+    }
 }

@@ -4,6 +4,7 @@ import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.mqtt.MqttEndpoint;
 import lombok.Data;
 
+import java.util.LinkedList;
 import java.util.Objects;
 
 /**
@@ -15,31 +16,37 @@ import java.util.Objects;
 @Data
 public class MqttEndpointPower {
 
-    private MqttEndpoint endpoint;
+    private String clientIdentifier;
+
 
     private MqttQoS qoS;
+
+    private boolean cleanSession;
 
     private boolean willFlag;
 
     private Topic will;
+
+//    private LinkedList<Topic> offlineTopic;
+
+    public MqttEndpointPower(MqttEndpoint endpoint) {
+        this.endpoint = endpoint;
+    }
+
+    public MqttEndpointPower(String clientIdentifier) {
+        this.clientIdentifier = clientIdentifier;
+    }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MqttEndpointPower that = (MqttEndpointPower) o;
-        return Objects.equals(endpoint, that.endpoint);
+        return Objects.equals(clientIdentifier, that.clientIdentifier);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(endpoint);
-    }
-
-    @Override
-    public String toString() {
-        return
-                "qoS=" + qoS
-             ;
+        return Objects.hash(clientIdentifier);
     }
 }

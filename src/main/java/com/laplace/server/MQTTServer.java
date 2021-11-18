@@ -4,6 +4,7 @@ package com.laplace.server;
 import com.laplace.server.manager.EndpointManager;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
+import io.vertx.mqtt.MqttEndpoint;
 import io.vertx.mqtt.MqttServer;
 import io.vertx.mqtt.messages.MqttPublishMessage;
 import io.vertx.mqtt.messages.MqttSubscribeMessage;
@@ -29,11 +30,11 @@ public class MQTTServer {
     //    @Resource
     EndpointManager endpointManager = new EndpointManager();
 
-
     public void start() {
         MqttServer mqttServer = MqttServer.create(Vertx.vertx());
         mqttServer.endpointHandler(endpoint -> {
-            endpointManager.dealWithLogin(endpoint);
+
+            if (!endpointManager.dealWithLogin(endpoint)) return;  // 如果验证不通过 不需要进行后续处理
 
             // 处理保持在线请求
             endpoint.pingHandler(new Handler<Void>() {
@@ -89,7 +90,7 @@ public class MQTTServer {
             endpoint.exceptionHandler(new Handler<Throwable>() {
                 @Override
                 public void handle(Throwable throwable) {
-                    endpointManager.exception(endpoint,throwable);
+                    endpointManager.exception(endpoint, throwable);
                 }
             });
 
