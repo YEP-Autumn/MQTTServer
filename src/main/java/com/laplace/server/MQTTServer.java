@@ -1,10 +1,9 @@
 package com.laplace.server;
 
 
-import com.laplace.server.manager.EndpointManager;
+import com.laplace.server.manager.MQTTServices;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
-import io.vertx.mqtt.MqttEndpoint;
 import io.vertx.mqtt.MqttServer;
 import io.vertx.mqtt.messages.MqttPublishMessage;
 import io.vertx.mqtt.messages.MqttSubscribeMessage;
@@ -13,7 +12,6 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 
 import java.security.Security;
-import java.sql.Timestamp;
 
 /**
  * @Author: YEP
@@ -28,19 +26,19 @@ public class MQTTServer {
     }
 
     //    @Resource
-    EndpointManager endpointManager = new EndpointManager();
+    MQTTServices MQTTServices = new MQTTServices();
 
     public void start() {
         MqttServer mqttServer = MqttServer.create(Vertx.vertx());
         mqttServer.endpointHandler(endpoint -> {
 
-            if (!endpointManager.dealWithLogin(endpoint)) return;  // 如果验证不通过 不需要进行后续处理
+            if (!MQTTServices.dealWithLogin(endpoint)) return;  // 如果验证不通过 不需要进行后续处理
 
             // 处理保持在线请求
             endpoint.pingHandler(new Handler<Void>() {
                 @Override
                 public void handle(Void unused) {
-                    endpointManager.pingManager(endpoint);
+                    MQTTServices.pingManager(endpoint);
                 }
             });
 
@@ -48,7 +46,7 @@ public class MQTTServer {
             endpoint.subscribeHandler(new Handler<MqttSubscribeMessage>() {
                 @Override
                 public void handle(MqttSubscribeMessage mqttSubscribeMessage) {
-                    endpointManager.subscribeManager(mqttSubscribeMessage, endpoint);
+                    MQTTServices.subscribeManager(mqttSubscribeMessage, endpoint);
                 }
             });
 
@@ -56,7 +54,7 @@ public class MQTTServer {
             endpoint.unsubscribeHandler(new Handler<MqttUnsubscribeMessage>() {
                 @Override
                 public void handle(MqttUnsubscribeMessage mqttUnsubscribeMessage) {
-                    endpointManager.unsubscribeManager(mqttUnsubscribeMessage, endpoint);
+                    MQTTServices.unsubscribeManager(mqttUnsubscribeMessage, endpoint);
                 }
             });
 
@@ -64,7 +62,7 @@ public class MQTTServer {
             endpoint.publishHandler(new Handler<MqttPublishMessage>() {
                 @Override
                 public void handle(MqttPublishMessage mqttPublishMessage) {
-                    endpointManager.publishManager(mqttPublishMessage, endpoint);
+                    MQTTServices.publishManager(mqttPublishMessage, endpoint);
 
                 }
             });
@@ -73,7 +71,7 @@ public class MQTTServer {
             endpoint.disconnectHandler(new Handler<Void>() {
                 @Override
                 public void handle(Void unused) {
-                    endpointManager.disconnectManager(endpoint);
+                    MQTTServices.disconnectManager(endpoint);
 
                 }
             });
@@ -82,7 +80,7 @@ public class MQTTServer {
             endpoint.closeHandler(new Handler<Void>() {
                 @Override
                 public void handle(Void unused) {
-                    endpointManager.close(endpoint);
+                    MQTTServices.close(endpoint);
                 }
             });
 
@@ -90,12 +88,12 @@ public class MQTTServer {
             endpoint.exceptionHandler(new Handler<Throwable>() {
                 @Override
                 public void handle(Throwable throwable) {
-                    endpointManager.exception(endpoint, throwable);
+                    MQTTServices.exception(endpoint, throwable);
                 }
             });
 
         }).listen(ar -> {
-            endpointManager.setListener(ar);
+            MQTTServices.setListener(ar);
         });
     }
 

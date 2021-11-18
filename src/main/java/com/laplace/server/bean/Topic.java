@@ -47,11 +47,11 @@ public class Topic {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Topic topic = (Topic) o;
-        return Objects.equals(topicName, topic.topicName) && qos == topic.qos;
+        return Objects.equals(topicName, topic.topicName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(topicName, qos);
+        return Objects.hash(topicName);
     }
 }

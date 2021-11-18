@@ -1,6 +1,5 @@
 package com.laplace.server.core;
 
-import com.laplace.server.bean.MqttEndpointPower;
 import com.laplace.server.bean.Topic;
 import io.vertx.mqtt.MqttEndpoint;
 import lombok.Data;

@@ -4,10 +4,11 @@ import com.laplace.server.bean.MqttEndpointPower;
 import com.laplace.server.core.RankTopic;
 import com.laplace.server.bean.Topic;
 import com.laplace.server.utils.TopicUtils;
+import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.mqtt.MqttEndpoint;
 
-import javax.xml.ws.Endpoint;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -21,13 +22,13 @@ public class RankTopicManager {
     private RankTopic topTopic = new RankTopic("$");
 
     // 处理订阅
-    public void subscribe(Topic topic, MqttEndpoint endpoint) {
-        topTopic.subscribe(topic.getTopicName(), endpoint.clientIdentifier());
+    public void subscribe(Topic topic, String clientIdentifier) {
+        topTopic.subscribe(topic.getTopicName(), clientIdentifier);
     }
 
     // 处理取消订阅
-    public void unsubscribe(String topicName, MqttEndpoint endpoint) {
-        topTopic.unSubscribe(topicName, endpoint.clientIdentifier());
+    public void unsubscribe(String topicName, String clientIdentifier) {
+        topTopic.unSubscribe(topicName, clientIdentifier);
     }
 
     // 发布信息
@@ -37,16 +38,22 @@ public class RankTopicManager {
         subscribeEndpointPowerLis.forEach(new Consumer<String>() {
             @Override
             public void accept(String clientIdentifier) {
-                MqttEndpointPower endpoint = EndpointManager.getEndpointByClientIdentifier(clientIdentifier);
-                if (topic.getQos().value() > endpoint.getQoS().value()) {
-                    topic.setQos(endpoint.getQoS());
+                MqttEndpointPower endpoint = EndpointTopicsManagement.getEndpointByClientIdentifier(clientIdentifier);
+                // 服务质量降级
+                MqttQoS topicQos = EndpointTopicsManagement.getTopicQos(clientIdentifier, topic);
+                if (topic.getQos().value() > topicQos.value()) {
+                    topic.setQos(topicQos);
                 }
-
-                TopicUtils.PUBLISH_DISPATCHER(topic, endpointPower.getEndpoint());
+                TopicUtils.PUBLISH_DISPATCHER(topic, endpoint.getEndpoint());
             }
         });
         return 0;
     }
 
 
+    public void unsubscribe(List<Topic> topics, String clientIdentifier) {
+        for (Topic topicName : topics) {
+            topTopic.unSubscribe(topicName.getTopicName(), clientIdentifier);
+        }
+    }
 }

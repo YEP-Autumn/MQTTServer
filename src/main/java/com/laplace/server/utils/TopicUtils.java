@@ -53,26 +53,20 @@ public class TopicUtils {
     }
 
     public static MqttEndpoint PUBLISH_DISPATCHER(Topic topic, MqttEndpoint endpoint) {
-        if (MqttQoS.AT_MOST_ONCE.equals(topic.getQos())) {
-            PUBLISH_ALL_QoS(topic, endpoint);
-            return endpoint;
-        }
-        if (MqttQoS.AT_LEAST_ONCE.equals(topic.getQos())) {
-            PUBLISH_AT_LEAST_ONCE(topic, endpoint);
-            return endpoint;
-        }
-        if (MqttQoS.EXACTLY_ONCE.equals(topic.getQos())) {
-            PUBLISH_EXACTLY_ONCE(topic, endpoint);
-            return endpoint;
-        }
-        return endpoint;
-    }
-
-
-    private static MqttEndpoint PUBLISH_ALL_QoS(Topic topic, MqttEndpoint endpoint) {
         // 如果客户端是连接状态则直接发送
         if (endpoint.isConnected()) {
-            endpoint.publish(topic.getTopicName(), topic.getPayload(), topic.getQos(), topic.isDup(), topic.isRetain());
+            if (MqttQoS.AT_MOST_ONCE.equals(topic.getQos())) {
+                PUBLISH_ALL_QoS(topic, endpoint);
+                return endpoint;
+            }
+            if (MqttQoS.AT_LEAST_ONCE.equals(topic.getQos())) {
+                PUBLISH_AT_LEAST_ONCE(topic, endpoint);
+                return endpoint;
+            }
+            if (MqttQoS.EXACTLY_ONCE.equals(topic.getQos())) {
+                PUBLISH_EXACTLY_ONCE(topic, endpoint);
+                return endpoint;
+            }
             return endpoint;
         }
         // 如果客户端的cleanSession为true 说明需要清理会话 不用保存离线消息
@@ -86,7 +80,20 @@ public class TopicUtils {
     }
 
 
+    /**
+     * 最终发送消息的方法
+     *
+     * @param topic
+     * @param endpoint
+     * @return
+     */
+    private static MqttEndpoint PUBLISH_ALL_QoS(Topic topic, MqttEndpoint endpoint) {
+        return endpoint.publish(topic.getTopicName(), topic.getPayload(), topic.getQos(), topic.isDup(), topic.isRetain());
+    }
+
+
     private static MqttEndpoint PUBLISH_AT_LEAST_ONCE(Topic topic, MqttEndpoint endpoint) {
+        System.out.println("转发服务质量为AT_LEAST_ONCE的消息");
         new Thread(new Runnable() {
             @SneakyThrows
             @Override
@@ -112,7 +119,7 @@ public class TopicUtils {
     }
 
     private static MqttEndpoint PUBLISH_EXACTLY_ONCE(Topic topic, MqttEndpoint endpoint) {
-        System.out.println("转发服务质量为2的消息");
+        System.out.println("转发服务质量为EXACTLY_ONCE的消息");
         new Thread(new Runnable() {
             @SneakyThrows
             @Override

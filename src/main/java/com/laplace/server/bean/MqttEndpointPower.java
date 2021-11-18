@@ -1,10 +1,9 @@
 package com.laplace.server.bean;
 
-import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.mqtt.MqttEndpoint;
 import lombok.Data;
 
-import java.util.LinkedList;
+
 import java.util.Objects;
 
 /**
@@ -16,25 +15,13 @@ import java.util.Objects;
 @Data
 public class MqttEndpointPower {
 
+    private MqttEndpoint endpoint;
+
     private String clientIdentifier;
-
-
-    private MqttQoS qoS;
-
-    private boolean cleanSession;
-
-    private boolean willFlag;
-
-    private Topic will;
-
-//    private LinkedList<Topic> offlineTopic;
 
     public MqttEndpointPower(MqttEndpoint endpoint) {
         this.endpoint = endpoint;
-    }
-
-    public MqttEndpointPower(String clientIdentifier) {
-        this.clientIdentifier = clientIdentifier;
+        this.clientIdentifier = endpoint.clientIdentifier();
     }
 
     @Override
@@ -49,4 +36,5 @@ public class MqttEndpointPower {
     public int hashCode() {
         return Objects.hash(clientIdentifier);
     }
+
 }
