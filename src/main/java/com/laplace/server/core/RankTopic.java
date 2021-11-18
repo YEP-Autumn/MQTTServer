@@ -1,6 +1,7 @@
 package com.laplace.server.core;
 
 import com.laplace.server.bean.Topic;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.mqtt.MqttEndpoint;
 import lombok.Data;
 
@@ -21,7 +22,7 @@ public class RankTopic {
     // 该层级的名字
     private String topic;
 
-//    // 当前的深度
+    // 当前的深度
 //    private String currentTopics;
 
     // 子层级
@@ -116,10 +117,13 @@ public class RankTopic {
             }
             return;
         }
+
+        // 继续向下索引
         int splitPosition = topic.indexOf("/");
         String thisTopic = topic.substring(0, splitPosition);
         String subTopic = topic.substring(splitPosition + 1);
 
+        // 如果为 + 特殊情况 特殊处理
         if ("+".equals(thisTopic)) {
             if (this.wildcardOne == null) {
                 this.wildcardOne = new RankTopic("+");
@@ -127,13 +131,15 @@ public class RankTopic {
             this.wildcardOne.subscribe(subTopic, clientIdentifier);
             return;
         }
-
+        // 正常处理 判断是否存在这个层级主题
         int position = subTopics.indexOf(new RankTopic(thisTopic));
         if (position == -1) {
+            // 如果不存在 新建一个层级 将position设置为该层级
             RankTopic rankTopic = new RankTopic(thisTopic);
             this.subTopics.add(rankTopic);
             position = this.subTopics.size() - 1;
         }
+        // 向下索引
         this.subTopics.get(position).subscribe(subTopic, clientIdentifier);
 
     }
@@ -220,19 +226,65 @@ public class RankTopic {
         return this.subTopics.get(subPosition).getSubscribeEndpointPowerLis(subTopic, endpointClientIdentifiers);  // 如果存在thisTopic这个层级继续向下索引
     }
 
-    private boolean sendRetain(RankTopic rankTopic, String clientIdentifier) {
+    // 发送 订阅 # 的保留消息
+    private LinkedList<Topic> sendRetain(String topicName, LinkedList<Topic> topics) {
 
-        return isRetain;
-    }
+        if ("#".equals(topicName)) {
 
-    private boolean sendRetain(List<RankTopic> rankTopics, String clientIdentifier) {
-        boolean haveRetain = false;
-        for (RankTopic rankTopic : rankTopics) {
-            boolean b = sendRetain(rankTopic, clientIdentifier);
-            if (b) {
-                haveRetain = true;
-            }
         }
-        return haveRetain;
+
+        if ("+".equals(topicName)) {
+
+        }
+        if (!topicName.contains("/")) {
+
+        }
+
+
+        return null;
     }
+
+    // 修改保留消息
+    private void changeRetain(String topicName, Topic topic) {
+        if (Buffer.buffer("").equals(topic.getPayload())) {
+            removeRetain(topicName);
+            return;
+        }
+        updateRetain(topicName, topic);
+    }
+
+    public void removeRetain(String topicName) {
+        if (!topicName.contains("/")) {
+            // 说明是最终层级
+            // + 层级主题的保留消息设置为false
+            this.wildcardOne.setRetain(false);
+            int position = this.subTopics.indexOf(new RankTopic(topicName));
+            if (position != -1) {
+                // 如果存在这个子层级 将其保留消息设置为false
+                subTopics.get(position).setRetain(false);
+            }
+            return;
+        }
+        // 如果不是最终层级
+        int position = topicName.indexOf("/");
+        String thisTopic = topic.substring(0, position);
+        String subTopic = topic.substring(position + 1);
+        this.wildcardOne.removeRetain(subTopic);
+
+        int positionSub = this.subTopics.indexOf(new RankTopic(thisTopic));
+        if (positionSub != -1) {
+            this.subTopics.get(positionSub).removeRetain(subTopic);
+        }
+    }
+
+
+    private void updateRetain(String topicName, Topic topic) {
+        if (!topicName.contains("/")) {
+            // 最终层级处理
+            this.wildcardOne.setRetain(true);
+            this.wildcardOne.setRetain(topic);
+
+        }
+    }
+
 }
