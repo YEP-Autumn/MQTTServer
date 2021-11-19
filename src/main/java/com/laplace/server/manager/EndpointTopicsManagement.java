@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * @Author: YEP
@@ -63,9 +64,10 @@ public class EndpointTopicsManagement {
     public static MqttQoS getTopicQos(String clientIdentifier, Topic topic) {
         LinkedList<Topic> topics = subscribeTopics.get(clientIdentifier);
         if (topics != null) {
-            int position = topics.indexOf(topic);
-            if (position != -1) {
-                return topics.get(position).getQos();
+            for (Topic t : topics) {
+                if (topic.getTopicName().matches(t.getTopicName().replaceAll("\\+", ".*?").replaceAll("/#", ".*").replaceAll("#",".*"))) {
+                    return t.getQos();
+                }
             }
         }
         System.out.println("出现逻辑错误,该设备(" + clientIdentifier + ")没有订阅该主题(" + topic.getTopicName() + ")");

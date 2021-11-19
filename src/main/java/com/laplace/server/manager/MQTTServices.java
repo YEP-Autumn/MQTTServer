@@ -81,7 +81,10 @@ public class MQTTServices {
             System.out.println("【订阅主题】:" + s.topicName() + " 【服务质量】:" + s.qualityOfService());
             grantedQosLevels.add(s.qualityOfService());
             Topic topic = new Topic(s.topicName(), s.qualityOfService());
-            if (!TopicUtils.topicsValidate(topic)) endpoint.close(); // 如果订阅主题不符合规定直接关闭连接
+            if (!TopicUtils.topicsValidate(topic)){
+                endpoint.close(); // 如果订阅主题不符合规定直接关闭连接
+                return;
+            }
             rankTopicManager.subscribe(topic, endpoint.clientIdentifier());
             EndpointTopicsManagement.addSubscribeTopics(endpoint.clientIdentifier(), new Topic(topic.getTopicName(), s.qualityOfService()));  // 保存该endpoint订阅过的主题
         }
@@ -108,10 +111,15 @@ public class MQTTServices {
                 " 【Message】:" + mqttPublishMessage.payload().toString() +
                 " 【保留】:" + mqttPublishMessage.isRetain() +
                 " 【重复】:" + mqttPublishMessage.isDup());
-        // 如果是重复消息说明该设备网络不好，曾经发送过数据但没有收到返回消息
+        // 如果是重复消息(isDup=true)说明该客户端网络不好，曾经发送过数据但没有收到返回消息
+        Topic topic = new Topic(mqttPublishMessage.topicName(), mqttPublishMessage.qosLevel(), mqttPublishMessage.payload(), false, mqttPublishMessage.isRetain());
 
-        Topic topic = new Topic(mqttPublishMessage.topicName(), mqttPublishMessage.qosLevel(), mqttPublishMessage.payload(), false, false);
-
+        // 必须先修改保留消息:
+        // 如果后修改保留消息，可能出现，客户端发送保留消息时，服务端获取完订阅该主题设备后，有设备订阅了该主题。
+        // 此时，订阅的客户端即没有收到保留消息，服务端也没有给订阅客户端发送消息
+        // 反之，客户端可能收到两条消息: 第一条保留消息，第二条即时消息(可能性非常小)
+        rankTopicManager.changeRetain(topic);
+        topic.setRetain(false);
 
         // QoS = 0
         if (mqttPublishMessage.qosLevel() == MqttQoS.AT_MOST_ONCE) {

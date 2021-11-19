@@ -33,8 +33,8 @@ public class Topic {
         this.topicName = topicName;
         this.qos = qos;
         this.payload = payload;
-        Dup = dup;
-        Retain = retain;
+        this.Dup = dup;
+        this.Retain = retain;
     }
 
     public Topic(String topicName, MqttQoS qos) {
