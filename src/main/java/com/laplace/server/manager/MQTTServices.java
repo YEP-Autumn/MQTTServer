@@ -24,6 +24,7 @@ import java.util.*;
  * @Info:
  * @Email:
  */
+
 public class MQTTServices {
 
 
@@ -169,7 +170,7 @@ public class MQTTServices {
 
 
     public void disconnectManager(MqttEndpoint endpoint) {
-        System.out.println("客户端【Disconnect】主动断开连接");
+        System.out.println("客户端【" + endpoint.clientIdentifier() + "】 Disconnect 主动断开连接");
         EndpointTopicsManagement.disconnect(endpoint.clientIdentifier());
 //        System.out.println("用户【" + endpoint.clientIdentifier() + "】断开连接  【isConnect】:" + endpoint.isConnected()); // true
 //        System.out.println("遗嘱:" + endpoint.will().isWillFlag());
@@ -177,7 +178,7 @@ public class MQTTServices {
     }
 
     public void close(MqttEndpoint endpoint) {
-
+        System.out.println("客户端【" + endpoint.clientIdentifier() + "】连接关闭");
         if (EndpointTopicsManagement.isNeedSendWill(endpoint.clientIdentifier()) && endpoint.will().isWillFlag() && !StringUtil.isNullOrEmpty(endpoint.will().willTopic())) {
             Topic topic = new Topic(endpoint.will().willTopic(), MqttQoS.valueOf(endpoint.will().willQos()), Buffer.buffer(endpoint.will().willMessage()), false, endpoint.will().isWillRetain());
             rankTopicManager.publish(topic);

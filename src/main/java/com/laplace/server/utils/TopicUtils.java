@@ -92,6 +92,13 @@ public class TopicUtils {
     }
 
 
+    /**
+     * 发布服务质量为1的消息
+     *
+     * @param topic
+     * @param endpoint
+     * @return
+     */
     private static MqttEndpoint PUBLISH_AT_LEAST_ONCE(Topic topic, MqttEndpoint endpoint) {
         System.out.println("转发服务质量为AT_LEAST_ONCE的消息");
         PUBLISH_ALL_QoS(topic, endpoint).publishAcknowledgeHandler(new Handler<Integer>() {
@@ -103,6 +110,14 @@ public class TopicUtils {
         return endpoint;
     }
 
+
+    /**
+     * 发布服务质量为2的消息
+     *
+     * @param topic
+     * @param endpoint
+     * @return
+     */
     private static MqttEndpoint PUBLISH_EXACTLY_ONCE(Topic topic, MqttEndpoint endpoint) {
         System.out.println("转发服务质量为EXACTLY_ONCE的消息");
         PUBLISH_ALL_QoS(topic, endpoint).publishReceivedHandler(new Handler<Integer>() {
@@ -119,6 +134,62 @@ public class TopicUtils {
         return endpoint;
     }
 
+//    private static MqttEndpoint PUBLISH_AT_LEAST_ONCE(Topic topic, MqttEndpoint endpoint) {
+//        System.out.println("转发服务质量为AT_LEAST_ONCE的消息");
+//        new Thread(new Runnable() {
+//            @SneakyThrows
+//            @Override
+//            public void run() {
+//                final boolean[] isReceived = {false};
+//                final int[] count = {0};
+//                while (!isReceived[0] && count[0] < 100) {
+//                    PUBLISH_ALL_QoS(topic, endpoint).publishAcknowledgeHandler(new Handler<Integer>() {
+//                        @Override
+//                        public void handle(Integer integer) {
+////                            endpoint.publishAcknowledge(integer);
+//                            System.out.println("收到客户端【" + endpoint.clientIdentifier() + "】报文标识为【" + integer + "】的Acknowledge确认消息");
+//                            isReceived[0] = true;
+//                        }
+//                    });
+//                    Thread.sleep(10000);
+//                    count[0]++;
+//                    topic.setDup(true);
+//                }
+//            }
+//        }).start();
+//
+//        return endpoint;
+//    }
+//
+//    private static MqttEndpoint PUBLISH_EXACTLY_ONCE(Topic topic, MqttEndpoint endpoint) {
+//        System.out.println("转发服务质量为EXACTLY_ONCE的消息");
+//        new Thread(new Runnable() {
+//            @SneakyThrows
+//            @Override
+//            public void run() {
+//                final boolean[] isCompleted = {false};
+//                final int[] count = {0};
+//                while (!isCompleted[0] && count[0] < 100) {
+//                    PUBLISH_ALL_QoS(topic, endpoint).publishReceivedHandler(new Handler<Integer>() {
+//                        @Override
+//                        public void handle(Integer integer) {
+//                            endpoint.publishRelease(integer).publishCompleteHandler(new Handler<Integer>() {
+//                                @Override
+//                                public void handle(Integer integer) {
+//                                    System.out.println("收到客户端【" + endpoint.clientIdentifier() + "】报文标识为【" + integer + "】的Completed确认消息");
+//                                    isCompleted[0] = true;
+//                                }
+//                            });
+//                        }
+//                    });
+//                    Thread.sleep(10000);
+//                    count[0]++;
+//                    topic.setDup(true);
+//                }
+//            }
+//        }).start();
+//        return endpoint;
+//    }
 
     // 订阅之前时要校验格式
     public static boolean topicsValidate(Topic topic) {

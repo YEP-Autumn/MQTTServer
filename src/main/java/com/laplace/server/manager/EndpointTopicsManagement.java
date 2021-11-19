@@ -45,7 +45,6 @@ public class EndpointTopicsManagement {
     }
 
     public static void removeSubscribeTopics(String clientIdentifier, Topic topic) {
-
         if (subscribeTopics.containsKey(clientIdentifier)) {
             LinkedList<Topic> list = subscribeTopics.get(clientIdentifier);
             if (list != null) list.remove(topic);
@@ -53,7 +52,9 @@ public class EndpointTopicsManagement {
     }
 
     public static List<Topic> removeAllSubscribeTopics(String clientIdentifier) {
+
         if (subscribeTopics.containsKey(clientIdentifier)) {
+            if (endpoints.get(clientIdentifier).getEndpoint().isConnected()) return new ArrayList<>();
             LinkedList<Topic> needRemoveTopics = subscribeTopics.get(clientIdentifier);
             subscribeTopics.remove(clientIdentifier);
             return needRemoveTopics;
@@ -91,26 +92,30 @@ public class EndpointTopicsManagement {
      */
     public static boolean addEndpoint(MqttEndpoint endpoint) {
         boolean isReplace = false;
-
         if (endpoints.containsKey(endpoint.clientIdentifier())) {
             MqttEndpoint oldEndpoint = endpoints.get(endpoint.clientIdentifier()).getEndpoint();
-            if (oldEndpoint.isConnected()) oldEndpoint.close();
+            if (oldEndpoint.isConnected()) {
+                oldEndpoint.close();
+            }
             isReplace = true;
         }
+        removeAllSubscribeTopics(endpoint.clientIdentifier()); // 取消之前的订阅
         endpoints.put(endpoint.clientIdentifier(), new MqttEndpointPower(endpoint));
         return isReplace;
     }
 
     public static boolean removeEndpoint(String clientIdentifier) {
-        if (endpoints.containsKey(clientIdentifier)) {
-            endpoints.remove(clientIdentifier);
-            return true;
+
+        MqttEndpointPower endpointPower = endpoints.get(clientIdentifier);
+        if (endpointPower == null) {
+            return false;
         }
-        return false;
+        if (endpointPower.getEndpoint().isConnected()) return false;
+        endpoints.remove(clientIdentifier);
+        return true;
     }
 
     public static boolean disconnect(String clientIdentifier) {
-        System.out.println("disconnect");
         if (endpoints.containsKey(clientIdentifier)) {
             MqttEndpointPower endpointPower = endpoints.get(clientIdentifier);
             endpointPower.setActiveDisconnect(true);
@@ -128,7 +133,6 @@ public class EndpointTopicsManagement {
      */
     public static boolean isNeedSendWill(String clientIdentifier) {
         if (endpoints.containsKey(clientIdentifier)) {
-            System.out.println(endpoints.get(clientIdentifier));
             return !endpoints.get(clientIdentifier).isActiveDisconnect();
         }
         return false;
