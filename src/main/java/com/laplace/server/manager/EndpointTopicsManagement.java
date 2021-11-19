@@ -65,7 +65,7 @@ public class EndpointTopicsManagement {
         LinkedList<Topic> topics = subscribeTopics.get(clientIdentifier);
         if (topics != null) {
             for (Topic t : topics) {
-                if (topic.getTopicName().matches(t.getTopicName().replaceAll("\\+", ".*?").replaceAll("/#", ".*").replaceAll("#",".*"))) {
+                if (topic.getTopicName().matches(t.getTopicName().replaceAll("\\+", ".*?").replaceAll("/#", ".*").replaceAll("#", ".*"))) {
                     return t.getQos();
                 }
             }
@@ -91,6 +91,7 @@ public class EndpointTopicsManagement {
      */
     public static boolean addEndpoint(MqttEndpoint endpoint) {
         boolean isReplace = false;
+
         if (endpoints.containsKey(endpoint.clientIdentifier())) {
             MqttEndpoint oldEndpoint = endpoints.get(endpoint.clientIdentifier()).getEndpoint();
             if (oldEndpoint.isConnected()) oldEndpoint.close();
@@ -100,10 +101,35 @@ public class EndpointTopicsManagement {
         return isReplace;
     }
 
-    public static boolean removeEndpoint(MqttEndpoint endpoint) {
-        if (endpoints.containsKey(endpoint.clientIdentifier())) {
-            endpoints.remove(endpoint.clientIdentifier());
+    public static boolean removeEndpoint(String clientIdentifier) {
+        if (endpoints.containsKey(clientIdentifier)) {
+            endpoints.remove(clientIdentifier);
             return true;
+        }
+        return false;
+    }
+
+    public static boolean disconnect(String clientIdentifier) {
+        System.out.println("disconnect");
+        if (endpoints.containsKey(clientIdentifier)) {
+            MqttEndpointPower endpointPower = endpoints.get(clientIdentifier);
+            endpointPower.setActiveDisconnect(true);
+            endpoints.put(clientIdentifier, endpointPower);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 判断客户端是否需要发送遗嘱
+     *
+     * @param clientIdentifier
+     * @return
+     */
+    public static boolean isNeedSendWill(String clientIdentifier) {
+        if (endpoints.containsKey(clientIdentifier)) {
+            System.out.println(endpoints.get(clientIdentifier));
+            return !endpoints.get(clientIdentifier).isActiveDisconnect();
         }
         return false;
     }

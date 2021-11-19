@@ -19,9 +19,12 @@ public class MqttEndpointPower {
 
     private String clientIdentifier;
 
+    private boolean isActiveDisconnect; // 是否是主动断开连接
+
     public MqttEndpointPower(MqttEndpoint endpoint) {
         this.endpoint = endpoint;
         this.clientIdentifier = endpoint.clientIdentifier();
+        this.isActiveDisconnect = false;
     }
 
     @Override

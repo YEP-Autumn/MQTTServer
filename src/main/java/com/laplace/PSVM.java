@@ -2,6 +2,7 @@ package com.laplace;
 
 import com.laplace.server.bean.Topic;
 import com.laplace.server.utils.TopicUtils;
+import org.springframework.util.StringUtils;
 
 /**
  * @Author: YEP
@@ -14,12 +15,15 @@ public class PSVM {
 
     public static void main(String[] args) {
 
-        String topicName = "abc/+/+/+/#";
-        topicName = topicName.replaceAll("\\+", ".*?").replaceAll("/#", ".*");
-        String test = "abc/sfs/";
-        System.out.println(topicName);
-        System.out.println(test.matches(topicName));
-        System.out.println(test.matches("abc/.*?/.*?/.*?/.*"));
+
+
+
+//        String topicName = "abc/+/+/+/#";
+//        topicName = topicName.replaceAll("\\+", ".*?").replaceAll("/#", ".*");
+//        String test = "abc/sfs/";
+//        System.out.println(topicName);
+//        System.out.println(test.matches(topicName));
+//        System.out.println(test.matches("abc/.*?/.*?/.*?/.*"));
 
 
 

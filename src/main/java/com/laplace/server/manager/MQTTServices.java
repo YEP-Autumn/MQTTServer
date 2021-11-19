@@ -4,14 +4,17 @@ import com.laplace.server.bean.Topic;
 import com.laplace.server.utils.TopicUtils;
 import io.netty.handler.codec.mqtt.MqttConnectReturnCode;
 import io.netty.handler.codec.mqtt.MqttQoS;
+import io.netty.util.internal.StringUtil;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.mqtt.MqttEndpoint;
 import io.vertx.mqtt.MqttServer;
 import io.vertx.mqtt.MqttTopicSubscription;
 import io.vertx.mqtt.messages.MqttPublishMessage;
 import io.vertx.mqtt.messages.MqttSubscribeMessage;
 import io.vertx.mqtt.messages.MqttUnsubscribeMessage;
+import org.springframework.util.StringUtils;
 
 import java.util.*;
 
@@ -81,7 +84,7 @@ public class MQTTServices {
             System.out.println("【订阅主题】:" + s.topicName() + " 【服务质量】:" + s.qualityOfService());
             grantedQosLevels.add(s.qualityOfService());
             Topic topic = new Topic(s.topicName(), s.qualityOfService());
-            if (!TopicUtils.topicsValidate(topic)){
+            if (!TopicUtils.topicsValidate(topic)) {
                 endpoint.close(); // 如果订阅主题不符合规定直接关闭连接
                 return;
             }
@@ -167,20 +170,24 @@ public class MQTTServices {
 
     public void disconnectManager(MqttEndpoint endpoint) {
         System.out.println("客户端【Disconnect】主动断开连接");
-
+        EndpointTopicsManagement.disconnect(endpoint.clientIdentifier());
 //        System.out.println("用户【" + endpoint.clientIdentifier() + "】断开连接  【isConnect】:" + endpoint.isConnected()); // true
 //        System.out.println("遗嘱:" + endpoint.will().isWillFlag());
 
     }
 
     public void close(MqttEndpoint endpoint) {
-        if (endpoint.isCleanSession()) {
-            EndpointTopicsManagement.removeAllSubscribeTopics(endpoint.clientIdentifier());  // 正常断线 且清理回话为true，删除所有订阅信息
-            EndpointTopicsManagement.removeEndpoint(endpoint);
-        }
 
-//        System.out.println("用户【" + endpoint.clientIdentifier() + "】Close  【isConnect】:" + endpoint.isConnected()); // false
-//        System.out.println("遗嘱:" + endpoint.will().isWillFlag());
+        if (EndpointTopicsManagement.isNeedSendWill(endpoint.clientIdentifier()) && endpoint.will().isWillFlag() && !StringUtil.isNullOrEmpty(endpoint.will().willTopic())) {
+            Topic topic = new Topic(endpoint.will().willTopic(), MqttQoS.valueOf(endpoint.will().willQos()), Buffer.buffer(endpoint.will().willMessage()), false, endpoint.will().isWillRetain());
+            rankTopicManager.publish(topic);
+            System.out.println("发送遗嘱:" + topic);
+        }
+        if (endpoint.isCleanSession()) {
+            System.out.println("客户端需要清理会话");
+            EndpointTopicsManagement.removeAllSubscribeTopics(endpoint.clientIdentifier());  // 正常断线 且清理回话为true，删除所有订阅信息
+            EndpointTopicsManagement.removeEndpoint(endpoint.clientIdentifier());
+        }
     }
 
     public void setListener(AsyncResult<MqttServer> ar) {
@@ -204,7 +211,6 @@ public class MQTTServices {
 
     public void exception(MqttEndpoint endpoint, Throwable throwable) {
         System.out.println("客户端【" + endpoint.clientIdentifier() + "】异常断开" + throwable);
-        System.out.println("遗嘱:" + endpoint.will().isWillFlag());
     }
 
 }
