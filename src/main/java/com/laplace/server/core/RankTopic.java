@@ -279,7 +279,6 @@ public class RankTopic {
                 RankTopic rankTopic = new RankTopic(topicName);
                 rankTopic.setRetain(true);
                 rankTopic.setRetainTopic(topic);
-                System.out.println(rankTopic);
                 this.subTopics.add(rankTopic);
                 return;
             }

@@ -52,7 +52,7 @@ public class RankTopicManager {
 
         LinkedList<String> subscribeEndpointPowerLis = topTopic.getSubscribeEndpointPowerLis(topic.getTopicName(), new LinkedList<>());
         HashSet<String> subscribeSet = new HashSet<String>(subscribeEndpointPowerLis);
-        System.out.println("设备数量：" + subscribeSet.size());
+        System.out.println("订阅主题【" + topic.getTopicName() + "】设备数量：" + subscribeSet.size());
         subscribeSet.forEach(new Consumer<String>() {
             @Override
             public void accept(String clientIdentifier) {
@@ -75,6 +75,11 @@ public class RankTopicManager {
         }
     }
 
+    /**
+     * 修改保留消息，自动过滤非保留消息
+     *
+     * @param topic
+     */
     public void changeRetain(Topic topic) {
         if (topic.isRetain()) {
             topTopic.changeRetain(topic.getTopicName(), topic);

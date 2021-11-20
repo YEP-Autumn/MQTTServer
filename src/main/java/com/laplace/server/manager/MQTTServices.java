@@ -32,12 +32,6 @@ public class MQTTServices {
 
 
     public boolean dealWithLogin(MqttEndpoint endpoint) {
-        // 接受客户端连接----如果集合中存在这个ID-----偷天换日
-        if (EndpointTopicsManagement.addEndpoint(endpoint)) {
-            System.out.println("有新客户端连接--成功替换");
-        } else {
-            System.out.println("有新客户端连接--添加成功");
-        }
 
         // 打印用户登录信息
         System.out.println("【ClientID】:" + endpoint.clientIdentifier() + " 【连接状态】" + endpoint.isConnected() + " 【CleanSession】" + endpoint.isCleanSession());
@@ -58,6 +52,15 @@ public class MQTTServices {
             endpoint.reject(MqttConnectReturnCode.CONNECTION_REFUSED_BAD_USER_NAME_OR_PASSWORD);
             return false;
         }
+
+
+        // 接受客户端连接----如果集合中存在这个ID-----偷天换日
+        if (EndpointTopicsManagement.addEndpoint(endpoint)) {
+            System.out.println("有新客户端连接--成功替换");
+        } else {
+            System.out.println("有新客户端连接--添加成功");
+        }
+
 
         // 接收用户连接请求
         endpoint.autoKeepAlive(false);  // 自动保持连接,默认为true
@@ -181,6 +184,8 @@ public class MQTTServices {
         System.out.println("客户端【" + endpoint.clientIdentifier() + "】连接关闭");
         if (EndpointTopicsManagement.isNeedSendWill(endpoint.clientIdentifier()) && endpoint.will().isWillFlag() && !StringUtil.isNullOrEmpty(endpoint.will().willTopic())) {
             Topic topic = new Topic(endpoint.will().willTopic(), MqttQoS.valueOf(endpoint.will().willQos()), Buffer.buffer(endpoint.will().willMessage()), false, endpoint.will().isWillRetain());
+            rankTopicManager.changeRetain(topic);
+            topic.setRetain(false);
             rankTopicManager.publish(topic);
             System.out.println("发送遗嘱:" + topic);
         }

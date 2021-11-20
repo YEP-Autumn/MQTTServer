@@ -1,6 +1,5 @@
 package com.laplace.client;
 
-import com.sun.xml.internal.fastinfoset.util.StringArray;
 import lombok.SneakyThrows;
 import org.eclipse.paho.client.mqttv3.*;
 
