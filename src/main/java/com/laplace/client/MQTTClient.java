@@ -1,6 +1,6 @@
 package com.laplace.client;
 
-import com.sun.xml.internal.fastinfoset.util.StringArray;
+
 import org.eclipse.paho.client.mqttv3.*;
 
 import javax.security.auth.callback.Callback;

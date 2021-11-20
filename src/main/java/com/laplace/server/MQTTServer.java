@@ -33,6 +33,8 @@ public class MQTTServer {
     public void start() {
         MqttServer mqttServer = MqttServer.create(Vertx.vertx());
         mqttServer.endpointHandler(endpoint -> {
+
+            // 处理新客户端连接请求
             endpointManager.dealWithLogin(endpoint);
 
             // 处理保持在线请求
