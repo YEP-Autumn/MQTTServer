@@ -190,9 +190,10 @@ public class MQTTServices {
             System.out.println("发送遗嘱:" + topic);
         }
         if (endpoint.isCleanSession()) {
-            System.out.println("客户端需要清理会话");
-            EndpointTopicsManagement.removeAllSubscribeTopics(endpoint.clientIdentifier());  // 正常断线 且清理回话为true，删除所有订阅信息
-            EndpointTopicsManagement.removeEndpoint(endpoint.clientIdentifier());
+            List<Topic> topics = EndpointTopicsManagement.removeAllSubscribeTopics(endpoint.clientIdentifier());// 正常断线 且清理回话为true，删除所有订阅信息
+            boolean isRemove = EndpointTopicsManagement.removeEndpoint(endpoint.clientIdentifier());
+            rankTopicManager.unsubscribe(topics, endpoint.clientIdentifier());
+            System.out.println("客户端需要清理会话，是否删除Endpoint: " + isRemove + " 删除主题数量" + topics.size());
         }
     }
 

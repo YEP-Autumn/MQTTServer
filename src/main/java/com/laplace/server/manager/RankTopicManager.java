@@ -57,6 +57,7 @@ public class RankTopicManager {
             @Override
             public void accept(String clientIdentifier) {
                 MqttEndpointPower endpoint = EndpointTopicsManagement.getEndpointByClientIdentifier(clientIdentifier);
+                if (endpoint == null) return;  // 说明有客户端isClean为false离线，主题没有删除
                 // 服务质量降级
                 MqttQoS topicQos = EndpointTopicsManagement.getTopicQos(clientIdentifier, topic);
                 if (topic.getQos().value() > topicQos.value()) {
