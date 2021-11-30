@@ -9,8 +9,10 @@ import io.vertx.mqtt.messages.MqttPublishMessage;
 import io.vertx.mqtt.messages.MqttSubscribeMessage;
 import io.vertx.mqtt.messages.MqttUnsubscribeMessage;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.springframework.stereotype.Component;
 
 
+import javax.annotation.Resource;
 import java.security.Security;
 
 /**
@@ -19,14 +21,15 @@ import java.security.Security;
  * @Info:
  * @Email:
  */
+@Component
 public class MQTTServer {
 
     static {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    //    @Resource
-    MQTTServices MQTTServices = new MQTTServices();
+    @Resource
+    MQTTServices MQTTServices;
 
     public void start() {
         MqttServer mqttServer = MqttServer.create(Vertx.vertx());
@@ -63,7 +66,6 @@ public class MQTTServer {
                 @Override
                 public void handle(MqttPublishMessage mqttPublishMessage) {
                     MQTTServices.publishManager(mqttPublishMessage, endpoint);
-
                 }
             });
 
@@ -97,8 +99,4 @@ public class MQTTServer {
         });
     }
 
-    public static void main(String[] args) {
-        MQTTServer server = new MQTTServer();
-        server.start();
-    }
 }

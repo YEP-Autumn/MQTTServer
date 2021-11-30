@@ -14,8 +14,10 @@ import io.vertx.mqtt.MqttTopicSubscription;
 import io.vertx.mqtt.messages.MqttPublishMessage;
 import io.vertx.mqtt.messages.MqttSubscribeMessage;
 import io.vertx.mqtt.messages.MqttUnsubscribeMessage;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import javax.annotation.Resource;
 import java.util.*;
 
 /**
@@ -25,10 +27,12 @@ import java.util.*;
  * @Email:
  */
 
+@Component
 public class MQTTServices {
 
 
-    RankTopicManager rankTopicManager = new RankTopicManager();
+    @Resource
+    RankTopicManager rankTopicManager;
 
 
     public boolean dealWithLogin(MqttEndpoint endpoint) {

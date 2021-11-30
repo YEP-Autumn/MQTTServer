@@ -6,7 +6,9 @@ import com.laplace.server.bean.Topic;
 import com.laplace.server.utils.TopicUtils;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.mqtt.MqttEndpoint;
+import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -19,9 +21,11 @@ import java.util.function.Consumer;
  * @Info: 订阅、取消订阅、发布
  * @Email:
  */
+@Component
 public class RankTopicManager {
 
-    private RankTopic topTopic = new RankTopic("$");
+    @Resource
+    private RankTopic topTopic;
 
     // 处理订阅
     public void subscribe(Topic topic, String clientIdentifier) {
@@ -57,7 +61,7 @@ public class RankTopicManager {
             @Override
             public void accept(String clientIdentifier) {
                 MqttEndpointPower endpoint = EndpointTopicsManagement.getEndpointByClientIdentifier(clientIdentifier);
-                if (endpoint == null) return;  // 说明有客户端isClean为false离线，主题没有删除
+                if (endpoint == null) return;  // 说明有客户端isCleanSession为false离线，主题没有删除
                 // 服务质量降级
                 MqttQoS topicQos = EndpointTopicsManagement.getTopicQos(clientIdentifier, topic);
                 if (topic.getQos().value() > topicQos.value()) {
