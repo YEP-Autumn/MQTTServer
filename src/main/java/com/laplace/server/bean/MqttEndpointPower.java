@@ -1,8 +1,8 @@
 package com.laplace.server.bean;
 
-import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.mqtt.MqttEndpoint;
 import lombok.Data;
+
 
 import java.util.Objects;
 
@@ -17,29 +17,27 @@ public class MqttEndpointPower {
 
     private MqttEndpoint endpoint;
 
-    private MqttQoS qoS;
+    private String clientIdentifier;
 
-    private boolean willFlag;
+    private boolean isActiveDisconnect; // 是否是主动断开连接
 
-    private Topic will;
+    public MqttEndpointPower(MqttEndpoint endpoint) {
+        this.endpoint = endpoint;
+        this.clientIdentifier = endpoint.clientIdentifier();
+        this.isActiveDisconnect = false;
+    }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MqttEndpointPower that = (MqttEndpointPower) o;
-        return Objects.equals(endpoint, that.endpoint);
+        return Objects.equals(clientIdentifier, that.clientIdentifier);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(endpoint);
+        return Objects.hash(clientIdentifier);
     }
 
-    @Override
-    public String toString() {
-        return
-                "qoS=" + qoS
-             ;
-    }
 }

@@ -1,10 +1,8 @@
 package com.laplace;
 
-import com.laplace.server.bean.MqttEndpointPower;
-import com.laplace.server.bean.RankTopic;
-import io.netty.handler.codec.mqtt.MqttQoS;
-
-import java.util.LinkedList;
+import com.laplace.server.bean.Topic;
+import com.laplace.server.utils.TopicUtils;
+import org.springframework.util.StringUtils;
 
 /**
  * @Author: YEP
@@ -15,41 +13,56 @@ import java.util.LinkedList;
 public class PSVM {
 
 
-    public static void
-    main(String[] args) {
+    public static void main(String[] args) {
 
-        LinkedList<MqttEndpointPower> a = new LinkedList<>();
 
-        MqttEndpointPower endpointPower = new MqttEndpointPower();
-        endpointPower.setQoS(MqttQoS.AT_MOST_ONCE);
-        MqttEndpointPower endpointPower2 = new MqttEndpointPower();
-        endpointPower2.setQoS(MqttQoS.EXACTLY_ONCE);
-        MqttEndpointPower endpointPower3 = new MqttEndpointPower();
-        endpointPower3.setQoS(MqttQoS.AT_LEAST_ONCE);
-        RankTopic topics = new RankTopic("$");
 
-        String topic = "my_topic/sd/+/#";
-        topics.subscribe(topic, endpointPower);
-        topics.subscribe(topic, endpointPower2);
-        topics.subscribe(topic, endpointPower3);
-        topics.subscribe(topic, endpointPower);
-        topics.subscribe(topic, endpointPower);
-        topics.subscribe(topic, endpointPower);
-        System.out.println(topics);
-//        topics.unSubscribe(topic, endpointPower);
+
+//        String topicName = "abc/+/+/+/#";
+//        topicName = topicName.replaceAll("\\+", ".*?").replaceAll("/#", ".*");
+//        String test = "abc/sfs/";
+//        System.out.println(topicName);
+//        System.out.println(test.matches(topicName));
+//        System.out.println(test.matches("abc/.*?/.*?/.*?/.*"));
+
+
+
+//
+//        LinkedList<MqttEndpointPower> a = new LinkedList<>();
+//
+//        MqttEndpointPower endpointPower = new MqttEndpointPower();
+//        endpointPower.setQoS(MqttQoS.AT_MOST_ONCE);
+//        MqttEndpointPower endpointPower2 = new MqttEndpointPower();
+//        endpointPower2.setQoS(MqttQoS.EXACTLY_ONCE);
+//        MqttEndpointPower endpointPower3 = new MqttEndpointPower();
+//        endpointPower3.setQoS(MqttQoS.AT_LEAST_ONCE);
+//        RankTopic topics = new RankTopic("$");
+//
+//        String topic = "my_topic/sd/+/#";
+//        topics.subscribe(topic, endpointPower);
+//        topics.subscribe(topic, endpointPower2);
+//        topics.subscribe(topic, endpointPower3);
+//        topics.subscribe(topic, endpointPower);
+//        topics.subscribe(topic, endpointPower);
+//        topics.subscribe(topic, endpointPower);
 //        System.out.println(topics);
-        String findTopic = "my_topic/sd/s";
-        LinkedList<MqttEndpointPower> list = topics.getSubscribeEndpointPowerLis(findTopic, new LinkedList<>());
+////        topics.unSubscribe(topic, endpointPower);
+////        System.out.println(topics);
+//        String findTopic = "my_topic/sd/s";
+//        LinkedList<MqttEndpointPower> list = topics.getSubscribeEndpointPowerLis(findTopic, new LinkedList<>());
+//
+//        System.out.println(list.size());
 
-        System.out.println(list.size());
 
-
-//        String topic = "fsa/";
-//        int splitPosition = topic.indexOf("/");
-//        String thisTopic = topic.substring(0, splitPosition);
-//        String subTopic = topic.substring(splitPosition + 1);
-//        System.out.println(thisTopic);
-//        System.out.println(subTopic);
+//        String topic = "fsa/dsad/dsa/dsa/dsa////";
+//        while (true) {
+//            int splitPosition = topic.indexOf("/");
+//            String thisTopic = topic.substring(0, splitPosition);
+//            topic = topic.substring(splitPosition + 1);
+//            System.out.println("111111     " + thisTopic);
+//            System.out.println(topic);
+//            if (!topic.contains("/")) break;
+//        }
 
 
 //        LinkedList<RankTopics> a = new LinkedList<>();

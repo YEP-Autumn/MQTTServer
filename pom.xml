@@ -29,13 +29,11 @@
         </dependency>
 
 
-
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-integration</artifactId>
         </dependency>
-<!--        &lt;!&ndash; https://mvnrepository.com/artifact/org.springframework.integration/spring-integration-mqtt &ndash;&gt;-->
+        <!--        &lt;!&ndash; https://mvnrepository.com/artifact/org.springframework.integration/spring-integration-mqtt &ndash;&gt;-->
         <dependency>
             <groupId>org.springframework.integration</groupId>
             <artifactId>spring-integration-mqtt</artifactId>
@@ -48,8 +46,6 @@
         </dependency>
 
 
-
-
         <!-- https://mvnrepository.com/artifact/io.vertx/vertx-mqtt-server -->
         <dependency>
             <groupId>io.vertx</groupId>
@@ -57,12 +53,11 @@
             <version>3.4.2</version>
         </dependency>
 
-<!--        <dependency>-->
-<!--            <groupId>io.vertx</groupId>-->
-<!--            <artifactId>vertx-core</artifactId>-->
-<!--            <version>4.2.1</version>-->
-<!--        </dependency>-->
-
+        <!--        <dependency>-->
+        <!--            <groupId>io.vertx</groupId>-->
+        <!--            <artifactId>vertx-core</artifactId>-->
+        <!--            <version>4.2.1</version>-->
+        <!--        </dependency>-->
 
 
         <!-- https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk15on -->
@@ -77,6 +72,8 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
+
+
     </dependencies>
 
 

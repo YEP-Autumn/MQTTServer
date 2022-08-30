@@ -1,13 +1,18 @@
 package com.laplace.server.manager;
 
 import com.laplace.server.bean.MqttEndpointPower;
-import com.laplace.server.bean.RankTopic;
+import com.laplace.server.core.RankTopic;
 import com.laplace.server.bean.Topic;
 import com.laplace.server.utils.TopicUtils;
+import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.mqtt.MqttEndpoint;
+import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -16,47 +21,73 @@ import java.util.function.Consumer;
  * @Info: 订阅、取消订阅、发布
  * @Email:
  */
+@Component
 public class RankTopicManager {
 
-    private RankTopic topTopic = new RankTopic("$");
-
+    @Resource
+    private RankTopic topTopic;
 
     // 处理订阅
-    public void subscribe(Topic topic, MqttEndpoint endpoint) {
+    public void subscribe(Topic topic, String clientIdentifier) {
 
-        MqttEndpointPower endpointPower = new MqttEndpointPower();
-        endpointPower.setEndpoint(endpoint);
-        endpointPower.setQoS(topic.getQos());
-        topTopic.subscribe(topic.getTopicName(), endpointPower);
+        // 处理订阅
+        topTopic.subscribe(topic.getTopicName(), clientIdentifier);
 
+        // 处理订阅的保留消息
+        LinkedList<Topic> topicRetain = topTopic.getTopicRetain(topic.getTopicName(), new LinkedList<>());
+        System.out.println("保留消息总数量:" + topicRetain.size());
+        topicRetain.forEach(new Consumer<Topic>() {
+            @Override
+            public void accept(Topic t) {
+                t.setRetain(true);
+                t.setQos(t.getQos().value() < topic.getQos().value() ? t.getQos() : topic.getQos());  // 服务质量降级
+                TopicUtils.PUBLISH_DISPATCHER(t, EndpointTopicsManagement.getEndpointByClientIdentifier(clientIdentifier).getEndpoint());
+            }
+        });
     }
 
     // 处理取消订阅
-    public void unsubscribe(Topic topic, MqttEndpoint endpoint) {
-
-        MqttEndpointPower endpointPower = new MqttEndpointPower();
-        endpointPower.setEndpoint(endpoint);
-        topTopic.unSubscribe(topic.getTopicName(), endpointPower);
-
+    public void unsubscribe(String topicName, String clientIdentifier) {
+        topTopic.unSubscribe(topicName, clientIdentifier);
     }
 
     // 发布信息
     public int publish(Topic topic) {
-        LinkedList<MqttEndpointPower> subscribeEndpointPowerLis = topTopic.getSubscribeEndpointPowerLis(topic.getTopicName(), new LinkedList<>());
-        System.out.println("设备数量：" + subscribeEndpointPowerLis.size());
-        subscribeEndpointPowerLis.forEach(new Consumer<MqttEndpointPower>() {
+
+        LinkedList<String> subscribeEndpointPowerLis = topTopic.getSubscribeEndpointPowerLis(topic.getTopicName(), new LinkedList<>());
+        HashSet<String> subscribeSet = new HashSet<String>(subscribeEndpointPowerLis);
+        System.out.println("订阅主题【" + topic.getTopicName() + "】设备数量：" + subscribeSet.size());
+        subscribeSet.forEach(new Consumer<String>() {
             @Override
-            public void accept(MqttEndpointPower endpointPower) {
-
-                if (topic.getQos().value() > endpointPower.getQoS().value()) {
-                    topic.setQos(endpointPower.getQoS());
+            public void accept(String clientIdentifier) {
+                MqttEndpointPower endpoint = EndpointTopicsManagement.getEndpointByClientIdentifier(clientIdentifier);
+                if (endpoint == null) return;  // 说明有客户端isCleanSession为false离线，主题没有删除
+                // 服务质量降级
+                MqttQoS topicQos = EndpointTopicsManagement.getTopicQos(clientIdentifier, topic);
+                if (topic.getQos().value() > topicQos.value()) {
+                    topic.setQos(topicQos);
                 }
-
-                TopicUtils.PUBLISH_DISPATCHER(topic, endpointPower.getEndpoint());
+                TopicUtils.PUBLISH_DISPATCHER(topic, endpoint.getEndpoint());
             }
         });
         return 0;
     }
 
 
+    public void unsubscribe(List<Topic> topics, String clientIdentifier) {
+        for (Topic topicName : topics) {
+            topTopic.unSubscribe(topicName.getTopicName(), clientIdentifier);
+        }
+    }
+
+    /**
+     * 修改保留消息，自动过滤非保留消息
+     *
+     * @param topic
+     */
+    public void changeRetain(Topic topic) {
+        if (topic.isRetain()) {
+            topTopic.changeRetain(topic.getTopicName(), topic);
+        }
+    }
 }

@@ -1,7 +1,7 @@
 package com.laplace.server;
 
 
-import com.laplace.server.manager.EndpointManager;
+import com.laplace.server.manager.MQTTServices;
 import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.mqtt.MqttServer;
@@ -9,10 +9,11 @@ import io.vertx.mqtt.messages.MqttPublishMessage;
 import io.vertx.mqtt.messages.MqttSubscribeMessage;
 import io.vertx.mqtt.messages.MqttUnsubscribeMessage;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.springframework.stereotype.Component;
 
 
+import javax.annotation.Resource;
 import java.security.Security;
-import java.sql.Timestamp;
 
 /**
  * @Author: YEP
@@ -20,28 +21,27 @@ import java.sql.Timestamp;
  * @Info:
  * @Email:
  */
+@Component
 public class MQTTServer {
 
     static {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    //    @Resource
-    EndpointManager endpointManager = new EndpointManager();
-
+    @Resource
+    MQTTServices MQTTServices;
 
     public void start() {
         MqttServer mqttServer = MqttServer.create(Vertx.vertx());
         mqttServer.endpointHandler(endpoint -> {
 
-            // 处理新客户端连接请求
-            endpointManager.dealWithLogin(endpoint);
+            if (!MQTTServices.dealWithLogin(endpoint)) return;  // 如果验证不通过 不需要进行后续处理
 
             // 处理保持在线请求
             endpoint.pingHandler(new Handler<Void>() {
                 @Override
                 public void handle(Void unused) {
-                    endpointManager.pingManager(endpoint);
+                    MQTTServices.pingManager(endpoint);
                 }
             });
 
@@ -49,7 +49,7 @@ public class MQTTServer {
             endpoint.subscribeHandler(new Handler<MqttSubscribeMessage>() {
                 @Override
                 public void handle(MqttSubscribeMessage mqttSubscribeMessage) {
-                    endpointManager.subscribeManager(mqttSubscribeMessage, endpoint);
+                    MQTTServices.subscribeManager(mqttSubscribeMessage, endpoint);
                 }
             });
 
@@ -57,7 +57,7 @@ public class MQTTServer {
             endpoint.unsubscribeHandler(new Handler<MqttUnsubscribeMessage>() {
                 @Override
                 public void handle(MqttUnsubscribeMessage mqttUnsubscribeMessage) {
-                    endpointManager.unsubscribeManager(mqttUnsubscribeMessage, endpoint);
+                    MQTTServices.unsubscribeManager(mqttUnsubscribeMessage, endpoint);
                 }
             });
 
@@ -65,8 +65,7 @@ public class MQTTServer {
             endpoint.publishHandler(new Handler<MqttPublishMessage>() {
                 @Override
                 public void handle(MqttPublishMessage mqttPublishMessage) {
-                    endpointManager.publishManager(mqttPublishMessage, endpoint);
-
+                    MQTTServices.publishManager(mqttPublishMessage, endpoint);
                 }
             });
 
@@ -74,7 +73,7 @@ public class MQTTServer {
             endpoint.disconnectHandler(new Handler<Void>() {
                 @Override
                 public void handle(Void unused) {
-                    endpointManager.disconnectManager(endpoint);
+                    MQTTServices.disconnectManager(endpoint);
 
                 }
             });
@@ -83,7 +82,7 @@ public class MQTTServer {
             endpoint.closeHandler(new Handler<Void>() {
                 @Override
                 public void handle(Void unused) {
-                    endpointManager.close(endpoint);
+                    MQTTServices.close(endpoint);
                 }
             });
 
@@ -91,17 +90,13 @@ public class MQTTServer {
             endpoint.exceptionHandler(new Handler<Throwable>() {
                 @Override
                 public void handle(Throwable throwable) {
-                    endpointManager.exception(endpoint,throwable);
+                    MQTTServices.exception(endpoint, throwable);
                 }
             });
 
         }).listen(ar -> {
-            endpointManager.setListener(ar);
+            MQTTServices.setListener(ar);
         });
     }
 
-    public static void main(String[] args) {
-        MQTTServer server = new MQTTServer();
-        server.start();
-    }
 }
